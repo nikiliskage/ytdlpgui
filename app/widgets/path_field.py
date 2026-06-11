@@ -20,9 +20,14 @@ class PathField(QWidget):
     path_changed = Signal(str)
 
     def __init__(
-        self, value: str = "", show_status: bool = True, parent: QWidget | None = None
+        self,
+        value: str = "",
+        show_status: bool = True,
+        pick_dir: bool = False,
+        parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        self._pick_dir = pick_dir
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
@@ -44,7 +49,10 @@ class PathField(QWidget):
         layout.addWidget(self.status)
 
     def _on_browse(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Select file")
+        if self._pick_dir:
+            path = QFileDialog.getExistingDirectory(self, "Select folder", self.input.text())
+        else:
+            path, _ = QFileDialog.getOpenFileName(self, "Select file", self.input.text())
         if path:
             self.input.setText(path)
 

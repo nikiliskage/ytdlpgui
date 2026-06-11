@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app import icons
+from app import __version__, icons
 from app.core import contracts as c
 from app.widgets.path_field import PathField
 from app.widgets.toggle import Toggle
@@ -129,6 +129,12 @@ class SettingsPanel(QWidget):
         label.setContentsMargins(0, 18, 0, 8)
         self._body.addWidget(label)
 
+    def _field_label(self, text: str) -> None:
+        label = QLabel(text)
+        label.setProperty("class", "sp-label")
+        label.setContentsMargins(0, 6, 0, 4)
+        self._body.addWidget(label)
+
     def _get(self, key: str, default: object = "") -> object:
         try:
             value = self._config.get(key)
@@ -144,18 +150,21 @@ class SettingsPanel(QWidget):
     def _build_sections(self) -> None:
         # Binaries
         self._section_label("BINARIES")
+        self._field_label("yt-dlp")
         self.ytdlp_field = PathField(str(self._get("ytdlp_path")))
         self.ytdlp_field.path_changed.connect(lambda v: self._set("ytdlp_path", v))
         self._body.addWidget(self.ytdlp_field)
+        self._field_label("ffmpeg")
         self.ffmpeg_field = PathField(str(self._get("ffmpeg_path")))
         self.ffmpeg_field.path_changed.connect(lambda v: self._set("ffmpeg_path", v))
         self._body.addWidget(self.ffmpeg_field)
 
         # Output
         self._section_label("OUTPUT")
-        self.base_dir = self._labeled_input(
-            "Base directory", str(self._get("base_dir")), "base_dir"
-        )
+        self._field_label("Base directory")
+        self.base_dir = PathField(str(self._get("base_dir")), show_status=False, pick_dir=True)
+        self.base_dir.path_changed.connect(lambda v: self._set("base_dir", v))
+        self._body.addWidget(self.base_dir)
         self.video_dir = self._labeled_input(
             "Videos folder", str(self._get("video_subfolder", "videos")), "video_subfolder"
         )
@@ -229,7 +238,7 @@ class SettingsPanel(QWidget):
         self.update_btn.setObjectName("SpUpdate")
         self.update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._body.addWidget(self.update_btn)
-        version = QLabel("yt-dlp 2026.05.21 · GUI 0.3.0")
+        version = QLabel(f"GUI {__version__}")
         version.setObjectName("SpVersion")
         version.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._body.addWidget(version)

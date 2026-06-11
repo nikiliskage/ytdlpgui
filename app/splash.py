@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app import icons
+from app import __version__, icons
 
 # A step = (label, callable→detail-or-None). Callable may raise to mark failure.
 StepFn = Callable[[], str | None]
@@ -132,7 +132,7 @@ class Splash(QWidget):
         name.setTextFormat(Qt.TextFormat.RichText)
         name.setContentsMargins(0, 18, 0, 0)
         col.addWidget(name, 0, Qt.AlignmentFlag.AlignHCenter)
-        version = QLabel("version 0.3.0")
+        version = QLabel(f"version {__version__}")
         version.setObjectName("SplashVersion")
         col.addWidget(version, 0, Qt.AlignmentFlag.AlignHCenter)
 

@@ -331,8 +331,17 @@ class MainWindow(QWidget):
         builder = getattr(self._config, "as_download_options", None)
         if callable(builder):
             opts = builder(self.state.url, self.state.mode, fmt, preset)
-            if isinstance(opts, c.DownloadOptions):
-                return opts
+            if not isinstance(opts, c.DownloadOptions):
+                opts = self._bare_options(fmt)
+        else:
+            opts = self._bare_options(fmt)
+        # In Audio mode, the media-card chip (opus/mp3/m4a) overrides the
+        # configured default audio format.
+        if self.state.mode == c.DownloadMode.AUDIO and self.state.quality in ("opus", "mp3", "m4a"):
+            opts.audio_format = self.state.quality
+        return opts
+
+    def _bare_options(self, fmt: str | None) -> c.DownloadOptions:
         opts = c.DownloadOptions(url=self.state.url, mode=self.state.mode)
         if fmt:
             opts.format_id = fmt
