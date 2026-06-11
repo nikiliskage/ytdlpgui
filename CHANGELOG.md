@@ -21,7 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   binary/version checks, omni-bar, media card (segmented modes, quality chips, format table),
   download dock with QPainter progress rings, queue panel, settings slide-over; dark + purple
   theme (`app/resources/theme.qss`).
-- 134 unit/UI tests; ruff + mypy clean.
-
-### Planned
-- Integration (`app/main.py` wiring real cores via DI) + PyInstaller packaging
+- **Integration (Faz 2):** `app/main.py` (+ root `main.py`) wires the real `Config`,
+  `FormatFetcher`, and `YtDlpRunner` factory into the UI via DI, with a splash that runs
+  the real yt-dlp/ffmpeg version checks. Concurrency-limited queue in the main window
+  (default max 2, others wait and auto-start). PyInstaller spec (`ytdlpgui.spec`,
+  single-file GUI; binaries stay external).
+- 134 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).

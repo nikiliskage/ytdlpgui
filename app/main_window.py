@@ -78,6 +78,8 @@ class MainWindow(QWidget):
         self._ids = itertools.count(1)
         self._runners: dict[str, c.IYtDlpRunner] = {}
         self._max_concurrent = _as_int(self._cfg("max_concurrent_downloads", 2), 2)
+        self._pending: list[tuple[str, c.DownloadOptions]] = []
+        self._active = 0
 
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
@@ -236,25 +238,46 @@ class MainWindow(QWidget):
         if not self._reduced_motion:
             fly_to_dock(host, start, QPoint(end.x(), end.y()), self._reduced_motion)
 
-        # build options + runner
+        # enqueue (QUEUED); _pump starts it when a concurrency slot is free
         options = self._build_options()
-        runner = self._runner_factory()
-        self._runners[job_id] = runner
-        runner.set_callbacks(
-            partial(self._on_progress, job_id),
-            lambda line: None,
-            partial(self._on_finished, job_id),
-        )
-        self.dock.set_state(job_id, c.JobState.RUNNING)
+        self.dock.set_state(job_id, c.JobState.QUEUED)
         row = self.queue_panel.row(job_id)
         if row is not None:
-            row.set_state(c.JobState.RUNNING)
-        runner.start(options)
+            row.set_state(c.JobState.QUEUED)
+        self._pending.append((job_id, options))
+        self._pump()
+
+    def _pump(self) -> None:
+        """Start pending jobs until the concurrency limit is reached."""
+        while self._active < self._max_concurrent and self._pending:
+            job_id, options = self._pending.pop(0)
+            runner = self._runner_factory()
+            self._runners[job_id] = runner
+            runner.set_callbacks(
+                partial(self._on_progress, job_id),
+                lambda line: None,
+                partial(self._on_finished, job_id),
+            )
+            self._active += 1
+            self.dock.set_state(job_id, c.JobState.RUNNING)
+            row = self.queue_panel.row(job_id)
+            if row is not None:
+                row.set_state(c.JobState.RUNNING)
+            runner.start(options)
 
     def _build_options(self) -> c.DownloadOptions:
+        fmt = self.state.selected_format
+        preset = None if fmt else self.state.quality
+        # Real Config provides as_download_options (applies output dirs, cookies,
+        # audio format, embed flags, etc.). Test mocks may not — fall back then.
+        builder = getattr(self._config, "as_download_options", None)
+        if callable(builder):
+            opts = builder(self.state.url, self.state.mode, fmt, preset)
+            if isinstance(opts, c.DownloadOptions):
+                return opts
         opts = c.DownloadOptions(url=self.state.url, mode=self.state.mode)
-        if self.state.selected_format:
-            opts.format_id = self.state.selected_format
+        if fmt:
+            opts.format_id = fmt
             opts.preset = None
         else:
             opts.preset = self.state.quality
@@ -272,6 +295,8 @@ class MainWindow(QWidget):
         if row is not None:
             msg = error.user_message if error else ""
             row.set_state(state, msg)
+        self._active = max(0, self._active - 1)
+        self._pump()
 
     def _clear_completed(self) -> None:
         for job_id, item in list(self.dock._items.items()):  # noqa: SLF001
