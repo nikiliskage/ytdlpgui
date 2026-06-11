@@ -29,6 +29,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-m 'not network'"
 markers = [
     "network: requires internet and a real yt-dlp binary (deselected by default)",
