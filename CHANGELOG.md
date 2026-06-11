@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - Unreleased
 
 ### Added
-- Project scaffolding: core contracts (`app/core/contracts.py`), plans, and design handoff.
+- Project scaffolding: core contracts layer (`app/core/contracts.py`).
 - Tooling: pytest + pytest-qt, ruff, mypy, GitHub Actions CI (Windows), shared test
   fixtures/mocks, project documentation (README, SECURITY, ARCHITECTURE).
 - **Core (Stream A):** `config.py` (JSON-persisted settings, migration-safe) and `paths.py`
@@ -23,5 +23,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   theme (`app/resources/theme.qss`).
 - 134 unit/UI tests; ruff + mypy clean.
 
-### Planned (see `plans/`)
-- Integration (`app/main.py` wiring real cores via DI) + PyInstaller packaging (Faz 2)
+### Planned
+- Integration (`app/main.py` wiring real cores via DI) + PyInstaller packaging

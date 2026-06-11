@@ -5,7 +5,7 @@ Paste a link, pick a real available format, and download — with a built-in que
 support for sign-in/age-restricted content, audio extraction (opus by default), subtitles,
 and one-click yt-dlp self-update.
 
-> **Status:** in development (`0.1.0`). See [plans/](plans/) for the architecture and roadmap.
+> **Status:** in development (`0.1.0`).
 
 ## Why
 Using yt-dlp from the command line, two things are annoying:

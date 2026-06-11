@@ -1,7 +1,6 @@
 # Architecture
 
-> Forward-looking developer reference. Authoritative planning lives in [../plans/](../plans/);
-> the high-fidelity UI design is in [../plans/ui/design_handoff_ytdlp_gui/](../plans/ui/design_handoff_ytdlp_gui/).
+> Forward-looking developer reference for the ytdlpgui codebase.
 
 ## Overview
 A PySide6 (Qt Widgets) desktop GUI that drives `yt-dlp.exe` as a subprocess (`QProcess`).
