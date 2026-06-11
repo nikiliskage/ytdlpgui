@@ -1,0 +1,329 @@
+/* theme.qss — yt-dlp GUI dark theme + purple accent (handoff tokens).
+ *
+ * Token reference (see design_handoff/tokens.css):
+ *   bg #1a1a1f · bg-deep #121216 · surface #24242c · surface-2 #2c2c36
+ *   surface-3 #34343f · border #34343e · border-soft #2c2c35
+ *   accent #a855f7 · accent-hover #b974ff · accent-dim rgba(168,85,247,0.14)
+ *   text #e8e8ee · muted #9a9aa6 · faint #6b6b78
+ *   success #3ecf8e · warning #f0c75a · error #ff5470
+ *
+ * The accent is swappable at runtime (purple/indigo/pink) by string-substituting
+ * the @accent / @accent-hover placeholders before setStyleSheet — see
+ * MainWindow._load_qss. When loaded directly the defaults below are used.
+ */
+
+QWidget {
+    color: #e8e8ee;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+
+/* ---------- App window shell ---------- */
+#AppRoot {
+    background: #1a1a1f;
+    border: 1px solid #2e2e38;
+    border-radius: 12px;
+}
+
+/* ---------- Title bar ---------- */
+#TitleBar {
+    border-bottom: 1px solid #2c2c35;
+    background: #1d1d23;
+}
+#TitleBar QLabel#AppName { font-size: 13px; font-weight: 600; }
+.tb-btn {
+    background: transparent;
+    border: none;
+    color: #9a9aa6;
+}
+.tb-btn:hover { background: rgba(255,255,255,0.06); color: #e8e8ee; }
+#TbClose:hover { background: #e81123; color: #ffffff; }
+#TbGear:hover { color: #b974ff; }
+#TbGear[settingsOpen="true"] { color: #b974ff; }
+
+/* ---------- Banner ---------- */
+#BinaryBanner {
+    background: rgba(240,199,90,0.08);
+    border-bottom: 1px solid rgba(240,199,90,0.25);
+}
+#BinaryBanner QLabel { color: #d9c08a; font-size: 12px; }
+#BinaryBanner QPushButton {
+    background: transparent;
+    border: 1px solid rgba(240,199,90,0.4);
+    color: #f0c75a;
+    font-size: 12px; font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 6px;
+}
+#BinaryBanner QPushButton:hover { background: rgba(240,199,90,0.12); }
+
+/* ---------- Scroll area ---------- */
+#MainArea { background: transparent; border: none; }
+#MainArea > QWidget > QWidget { background: transparent; }
+QScrollBar:vertical {
+    background: transparent; width: 10px; margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: #33333d; border-radius: 5px; min-height: 30px;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
+
+/* ---------- Omni-bar ---------- */
+QLabel#HeroTitle { font-size: 22px; font-weight: 600; }
+QLabel#HeroSub { font-size: 13px; color: #9a9aa6; }
+#OmniBar {
+    background: #24242c;
+    border: 1px solid #34343e;
+    border-radius: 12px;
+}
+#OmniBar[focused="true"] { border: 1px solid #a855f7; }
+#OmniInput {
+    background: transparent; border: none;
+    color: #e8e8ee; font-size: 14px;
+}
+QPushButton#FetchBtn {
+    background: #a855f7;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px; font-weight: 600;
+    padding: 10px 22px;
+    min-width: 104px;
+}
+QPushButton#FetchBtn:hover { background: #b974ff; }
+QPushButton#FetchBtn:disabled { background: #34343f; color: #6b6b78; }
+
+/* ---------- Error band ---------- */
+#ErrorBand {
+    background: rgba(255,84,112,0.08);
+    border: 1px solid rgba(255,84,112,0.3);
+    border-radius: 10px;
+}
+#ErrorBand QLabel { color: #f3a7b4; font-size: 13px; }
+#ErrorBand QPushButton {
+    background: transparent;
+    border: 1px solid rgba(255,84,112,0.4);
+    color: #ff5470; font-size: 12px; font-weight: 600;
+    padding: 4px 12px; border-radius: 6px;
+}
+#ErrorBand QPushButton:hover { background: rgba(255,84,112,0.12); }
+
+/* ---------- Skeleton ---------- */
+#SkeletonCard {
+    background: #24242c;
+    border: 1px solid #2c2c35;
+    border-radius: 12px;
+}
+.sk-block { background: #2c2c36; border-radius: 6px; }
+
+/* ---------- Media card ---------- */
+#MediaCard {
+    background: #24242c;
+    border: 1px solid #2c2c35;
+    border-radius: 12px;
+}
+QLabel#McTitle { font-size: 16px; font-weight: 600; }
+QLabel#McChannel { font-size: 13px; color: #9a9aa6; }
+#CookieBand {
+    background: rgba(240,199,90,0.07);
+    border: 1px solid rgba(240,199,90,0.22);
+    border-radius: 8px;
+}
+#CookieBand QLabel { color: #d9c08a; font-size: 12px; }
+#CookieBand QPushButton {
+    background: transparent; border: none;
+    color: #f0c75a; font-size: 12px; font-weight: 600;
+    text-decoration: underline; padding: 0;
+}
+QLabel#McDest { font-size: 12px; color: #6b6b78; font-family: "Cascadia Code", Consolas, monospace; }
+QPushButton#QueueBtn {
+    background: #a855f7; color: #ffffff; border: none;
+    border-radius: 8px; font-size: 14px; font-weight: 600;
+    padding: 10px 22px;
+}
+QPushButton#QueueBtn:hover { background: #b974ff; }
+
+/* ---------- Segmented switch ---------- */
+#Segmented {
+    background: #1a1a1f;
+    border: 1px solid #34343e;
+    border-radius: 9px;
+}
+#Segmented QPushButton {
+    background: transparent; border: none;
+    color: #9a9aa6; font-size: 13px; font-weight: 500;
+    padding: 6px 16px; border-radius: 6px;
+}
+#Segmented QPushButton[active="true"] { color: #e8e8ee; }
+#SegThumb {
+    background: #34343f;
+    border: 1px solid rgba(168,85,247,0.35);
+    border-radius: 6px;
+}
+
+/* ---------- Quality chips ---------- */
+.chip {
+    background: #1a1a1f;
+    border: 1px solid #34343e;
+    color: #9a9aa6;
+    font-size: 12px; font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 14px;
+}
+.chip:hover { border: 1px solid #6b6b78; color: #e8e8ee; }
+.chip[selected="true"] {
+    background: rgba(168,85,247,0.14);
+    border: 1px solid #a855f7;
+    color: #b974ff;
+    font-weight: 600;
+}
+
+/* ---------- Advanced formats ---------- */
+QPushButton#AdvToggle {
+    background: transparent; border: none;
+    color: #9a9aa6; font-size: 12px; font-weight: 500;
+    text-align: left; padding: 4px 0;
+}
+QPushButton#AdvToggle:hover { color: #e8e8ee; }
+#FormatTable {
+    background: #1a1a1f;
+    border: 1px solid #2c2c35;
+    border-radius: 10px;
+    gridline-color: transparent;
+    font-size: 12px;
+    color: #9a9aa6;
+}
+#FormatTable::item { padding: 6px 10px; border-bottom: 1px solid #2c2c35; }
+#FormatTable::item:selected { background: rgba(168,85,247,0.14); color: #e8e8ee; }
+#FormatTable QHeaderView::section {
+    background: #1a1a1f;
+    color: #6b6b78;
+    font-size: 11px; font-weight: 600;
+    padding: 8px 10px;
+    border: none;
+    border-bottom: 1px solid #2c2c35;
+    text-transform: uppercase;
+}
+
+/* ---------- Dock ---------- */
+#Dock {
+    border-top: 1px solid #2c2c35;
+    background: #1d1d23;
+}
+.dock-item { background: transparent; border: none; border-radius: 10px; }
+.dock-item:hover { background: rgba(255,255,255,0.04); }
+QLabel#DockStat { font-size: 11px; color: #6b6b78; }
+QPushButton#DockExpand {
+    background: #24242c;
+    border: 1px solid #34343e;
+    color: #9a9aa6;
+    border-radius: 8px;
+}
+QPushButton#DockExpand:hover { color: #e8e8ee; border: 1px solid #6b6b78; }
+QPushButton#DockExpand:disabled { color: #44444f; }
+QLabel#DockEmpty { color: #6b6b78; font-size: 12px; }
+
+/* ---------- Queue panel ---------- */
+#QueuePanel {
+    background: #202028;
+    border-top: 1px solid #34343e;
+}
+QLabel#QpTitle { font-size: 13px; font-weight: 600; }
+QLabel#QpCount { font-size: 11px; color: #6b6b78; }
+QPushButton#QpClear {
+    background: transparent; border: none;
+    color: #6b6b78; font-size: 12px; font-weight: 500;
+}
+QPushButton#QpClear:hover { color: #e8e8ee; }
+.q-act {
+    background: transparent; border: none;
+    color: #6b6b78; border-radius: 7px;
+}
+.q-act:hover { background: rgba(255,255,255,0.06); color: #e8e8ee; }
+
+/* ---------- Scrim ---------- */
+#Scrim { background: rgba(10,10,14,0.45); }
+
+/* ---------- Settings panel ---------- */
+#SettingsPanel {
+    background: #202028;
+    border-left: 1px solid #34343e;
+}
+#SpHead { border-bottom: 1px solid #2c2c35; }
+QLabel#SpTitle { font-size: 15px; font-weight: 600; }
+QLabel.sp-section-label {
+    font-size: 10px; font-weight: 700; color: #6b6b78;
+}
+QLabel.sp-label { font-size: 13px; color: #e8e8ee; }
+QLabel.sp-sublabel { font-size: 11px; color: #6b6b78; }
+.sp-input {
+    background: #1a1a1f;
+    border: 1px solid #34343e;
+    border-radius: 7px;
+    color: #e8e8ee;
+    font-size: 12px;
+    padding: 7px 10px;
+}
+.sp-input:focus { border: 1px solid #a855f7; }
+.sp-input-mono { font-family: "Cascadia Code", Consolas, monospace; }
+QPushButton.sp-browse {
+    background: #2c2c36;
+    border: 1px solid #34343e;
+    color: #9a9aa6;
+    font-size: 12px; font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 7px;
+}
+QPushButton.sp-browse:hover { color: #e8e8ee; border: 1px solid #6b6b78; }
+QLabel.sp-status-ok { color: #3ecf8e; font-size: 11px; }
+QLabel.sp-status-bad { color: #ff5470; font-size: 11px; }
+.pill {
+    background: #1a1a1f;
+    border: 1px solid #34343e;
+    color: #9a9aa6;
+    font-size: 12px; font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 14px;
+}
+.pill:hover { border: 1px solid #6b6b78; color: #e8e8ee; }
+.pill[selected="true"] {
+    background: rgba(168,85,247,0.14);
+    border: 1px solid #a855f7;
+    color: #b974ff; font-weight: 600;
+}
+#SpNote {
+    background: rgba(240,199,90,0.06);
+    border: 1px solid rgba(240,199,90,0.18);
+    border-radius: 8px;
+}
+#SpNote QLabel { color: #c9b384; font-size: 11px; }
+QPushButton#SpUpdate {
+    background: #2c2c36;
+    border: 1px solid #34343e;
+    color: #e8e8ee;
+    font-size: 13px; font-weight: 600;
+    padding: 10px;
+    border-radius: 8px;
+}
+QPushButton#SpUpdate:hover { border: 1px solid #a855f7; background: rgba(168,85,247,0.14); }
+QLabel#SpVersion { font-size: 11px; color: #6b6b78; }
+QSlider::groove:horizontal { height: 4px; background: #34343f; border-radius: 2px; }
+QSlider::handle:horizontal {
+    background: #a855f7; width: 15px; height: 15px;
+    margin: -6px 0; border-radius: 7px;
+}
+QLabel#SliderVal { font-size: 12px; font-weight: 600; color: #b974ff; }
+
+/* ---------- Splash ---------- */
+#SplashCard {
+    background: #1e1e25;
+    border: 1px solid #2e2e38;
+    border-radius: 14px;
+}
+QLabel#SplashName { font-size: 21px; font-weight: 600; }
+QLabel#SplashVersion { font-size: 11px; color: #6b6b78; }
+QLabel.splash-step { font-size: 12px; color: #6b6b78; }
+QLabel.splash-step-running { color: #e8e8ee; }
+QLabel.splash-step-done { color: #9a9aa6; }
+QLabel.splash-detail { color: #3ecf8e; font-family: "Cascadia Code", Consolas, monospace; font-size: 11px; }
