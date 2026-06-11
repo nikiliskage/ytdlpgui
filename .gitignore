@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Test & tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build artifacts (PyInstaller workpath/distpath). Spec lives at repo root: ytdlpgui.spec
+build/
+dist/
+*.exe
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local config / runtime
+*.log
+
+# Planning & design docs (kept local, not published)
+plans/

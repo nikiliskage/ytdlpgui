@@ -1,0 +1,40 @@
+[project]
+name = "ytdlpgui"
+version = "0.1.0"
+description = "A PySide6 desktop GUI for yt-dlp (Windows-first)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = ["PySide6>=6.6"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+# E/F: pyflakes+pycodestyle, I: isort, UP: pyupgrade, B: bugbear, W: warnings
+select = ["E", "F", "I", "UP", "B", "W"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["app"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = true
+# Qt stubs are partial; don't fail on missing PySide6 typing.
+[[tool.mypy.overrides]]
+module = ["PySide6.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not network'"
+markers = [
+    "network: requires internet and a real yt-dlp binary (deselected by default)",
+    "qt: requires a Qt event loop (pytest-qt)",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true

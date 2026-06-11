@@ -1,0 +1,23 @@
+{
+  "_type": "playlist",
+  "id": "PL1234567890",
+  "title": "Sample Playlist",
+  "webpage_url": "https://www.youtube.com/playlist?list=PL1234567890",
+  "entries": [
+    {
+      "id": "vid0000001",
+      "title": "Playlist Item One",
+      "url": "https://www.youtube.com/watch?v=vid0000001"
+    },
+    {
+      "id": "vid0000002",
+      "title": "Playlist Item Two",
+      "url": "https://www.youtube.com/watch?v=vid0000002"
+    },
+    {
+      "id": "vid0000003",
+      "title": "Playlist Item Three",
+      "url": "https://www.youtube.com/watch?v=vid0000003"
+    }
+  ]
+}
