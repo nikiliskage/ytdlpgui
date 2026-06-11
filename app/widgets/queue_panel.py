@@ -122,6 +122,9 @@ class QueuePanel(QWidget):
     def __init__(self, reduced_motion: bool = False, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("QueuePanel")
+        # Required for the #QueuePanel QSS background to actually paint on a
+        # plain QWidget (otherwise the overlay is transparent and shows through).
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._reduced_motion = reduced_motion
         self._open = False
         self._rows: dict[str, QueueRow] = {}
@@ -151,7 +154,6 @@ class QueuePanel(QWidget):
         self._list.setContentsMargins(12, 0, 12, 12)
         self._list.setSpacing(2)
         layout.addLayout(self._list)
-        layout.addStretch(1)
 
         self._opacity_anim = QPropertyAnimation(self, b"windowOpacity", self)
         self._opacity_anim.setDuration(1 if reduced_motion else 300)

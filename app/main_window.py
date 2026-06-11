@@ -12,8 +12,8 @@ import itertools
 from functools import partial
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QKeyEvent, QResizeEvent
+from PySide6.QtCore import QPoint, Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QKeyEvent, QResizeEvent
 from PySide6.QtWidgets import (
     QScrollArea,
     QVBoxLayout,
@@ -79,7 +79,8 @@ class MainWindow(QWidget):
         self._runners: dict[str, c.IYtDlpRunner] = {}
         self._max_concurrent = _as_int(self._cfg("max_concurrent_downloads", 2), 2)
         self._pending: list[tuple[str, c.DownloadOptions]] = []
-        self._active = 0
+        self._running: set[str] = set()
+        self._job_options: dict[str, c.DownloadOptions] = {}
 
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
@@ -130,24 +131,24 @@ class MainWindow(QWidget):
         self._content_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 
         self.omni = OmniBar(self._reduced_motion)
-        self.omni.setMaximumWidth(760)
+        self.omni.setMaximumWidth(900)
         self.omni.fetch_requested.connect(self._on_fetch)
         self._content_layout.addWidget(self.omni, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.error_band = ErrorBand()
-        self.error_band.setMaximumWidth(760)
+        self.error_band.setMaximumWidth(900)
         self.error_band.retry.connect(self._retry)
         self.error_band.setVisible(False)
         self._content_layout.addWidget(self.error_band, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.skeleton = Skeleton(self._reduced_motion)
-        self.skeleton.setMaximumWidth(760)
+        self.skeleton.setMaximumWidth(900)
         self.skeleton.setVisible(False)
         self._content_layout.addSpacing(22)
         self._content_layout.addWidget(self.skeleton, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.media_card = MediaCard(self.state, self._reduced_motion)
-        self.media_card.setMaximumWidth(760)
+        self.media_card.setMaximumWidth(900)
         self.media_card.setVisible(False)
         self.media_card.add_to_queue.connect(self._on_add_to_queue)
         self.media_card.enable_cookies.connect(self._on_enable_cookies)
@@ -166,6 +167,7 @@ class MainWindow(QWidget):
         # overlays (children of root, manually positioned)
         self.scrim = QWidget(root)
         self.scrim.setObjectName("Scrim")
+        self.scrim.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.scrim.setVisible(False)
         self.scrim.mousePressEvent = lambda _e: self._close_overlays()  # type: ignore[method-assign]
 
@@ -240,30 +242,86 @@ class MainWindow(QWidget):
 
         # enqueue (QUEUED); _pump starts it when a concurrency slot is free
         options = self._build_options()
+        self._job_options[job_id] = options
         self.dock.set_state(job_id, c.JobState.QUEUED)
         row = self.queue_panel.row(job_id)
         if row is not None:
             row.set_state(c.JobState.QUEUED)
+            row.open_folder.connect(self._open_folder)
+            row.remove.connect(self._remove_job)
+            row.cancel.connect(self._cancel_job)
+            row.retry.connect(self._retry_job)
         self._pending.append((job_id, options))
+        if self.queue_panel.is_open():
+            self._layout_overlays()
         self._pump()
 
     def _pump(self) -> None:
         """Start pending jobs until the concurrency limit is reached."""
-        while self._active < self._max_concurrent and self._pending:
+        while len(self._running) < self._max_concurrent and self._pending:
             job_id, options = self._pending.pop(0)
             runner = self._runner_factory()
             self._runners[job_id] = runner
+            self._running.add(job_id)
             runner.set_callbacks(
                 partial(self._on_progress, job_id),
                 lambda line: None,
                 partial(self._on_finished, job_id),
             )
-            self._active += 1
             self.dock.set_state(job_id, c.JobState.RUNNING)
             row = self.queue_panel.row(job_id)
             if row is not None:
                 row.set_state(c.JobState.RUNNING)
             runner.start(options)
+
+    # -- queue row actions ----------------------------------------------------
+    def _open_folder(self, job_id: str) -> None:
+        opts = self._job_options.get(job_id)
+        if opts is None:
+            return
+        target = opts.target_dir()
+        target.mkdir(parents=True, exist_ok=True)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
+
+    def _remove_job(self, job_id: str) -> None:
+        self._pending = [(j, o) for (j, o) in self._pending if j != job_id]
+        if job_id in self._running:
+            runner = self._runners.get(job_id)
+            if runner is not None:
+                runner.cancel()
+            self._running.discard(job_id)
+        self._runners.pop(job_id, None)
+        self._job_options.pop(job_id, None)
+        self.dock.remove_item(job_id)
+        self.queue_panel.remove_row(job_id)
+        if not self.queue_panel.rows():
+            self._open_queue(False)
+        elif self.queue_panel.is_open():
+            self._layout_overlays()
+        self._pump()
+
+    def _cancel_job(self, job_id: str) -> None:
+        runner = self._runners.get(job_id)
+        if runner is not None:
+            runner.cancel()  # finished(CANCELED) will update state + pump
+            return
+        # queued but not started yet
+        self._pending = [(j, o) for (j, o) in self._pending if j != job_id]
+        self.dock.set_state(job_id, c.JobState.CANCELED)
+        row = self.queue_panel.row(job_id)
+        if row is not None:
+            row.set_state(c.JobState.CANCELED)
+
+    def _retry_job(self, job_id: str) -> None:
+        opts = self._job_options.get(job_id)
+        if opts is None:
+            return
+        self.dock.set_state(job_id, c.JobState.QUEUED)
+        row = self.queue_panel.row(job_id)
+        if row is not None:
+            row.set_state(c.JobState.QUEUED)
+        self._pending.append((job_id, opts))
+        self._pump()
 
     def _build_options(self) -> c.DownloadOptions:
         fmt = self.state.selected_format
@@ -295,7 +353,8 @@ class MainWindow(QWidget):
         if row is not None:
             msg = error.user_message if error else ""
             row.set_state(state, msg)
-        self._active = max(0, self._active - 1)
+        self._running.discard(job_id)
+        self._runners.pop(job_id, None)
         self._pump()
 
     def _clear_completed(self) -> None:
@@ -352,5 +411,9 @@ class MainWindow(QWidget):
         w, h = self._root.width(), self._root.height()
         self.scrim.setGeometry(0, 0, w, h)
         self.settings_panel.setGeometry(w - 380, 0, 380, h)
+        # Queue panel is a bottom sheet anchored to the dock top, growing upward;
+        # height fits its content (capped at 380, never taller than the space above).
         dock_top = h - 86
-        self.queue_panel.setGeometry(0, max(0, dock_top - 380), w, 380)
+        content_h = self.queue_panel.sizeHint().height()
+        panel_h = max(120, min(380, content_h, dock_top))
+        self.queue_panel.setGeometry(0, dock_top - panel_h, w, panel_h)

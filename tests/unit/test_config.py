@@ -145,12 +145,17 @@ def test_as_download_options_url_and_mode(tmp_config: Config) -> None:
 
 
 def test_as_download_options_cookie_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """as_download_options maps cookies_source from config."""
+    """cookies_source is applied only when the cookie module is enabled."""
     monkeypatch.setenv("YTDLPGUI_CONFIG_DIR", str(tmp_path))
     cfg = Config()
     cfg.set("cookies_source", CookieSource.BROWSER.value)
-    opts = cfg.as_download_options("https://example.com/v")
-    assert opts.cookie_source == CookieSource.BROWSER
+
+    # Disabled (default) → NONE, even if a source is configured.
+    assert cfg.as_download_options("https://example.com/v").cookie_source == CookieSource.NONE
+
+    # Enabled → the configured source is used.
+    cfg.set("cookies_enabled", True)
+    assert cfg.as_download_options("https://example.com/v").cookie_source == CookieSource.BROWSER
 
 
 def test_as_download_options_subtitle_langs(

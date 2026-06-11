@@ -81,6 +81,7 @@ class SettingsPanel(QWidget):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("SettingsPanel")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFixedWidth(380)
         self._config = config
         self._reduced_motion = reduced_motion

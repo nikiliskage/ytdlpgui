@@ -115,6 +115,8 @@ class Splash(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         card = QWidget()
         card.setObjectName("SplashCard")
+        # Window is translucent; the card must paint its own QSS background.
+        card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         card.setFixedWidth(440)
         self._card = card
         outer.addWidget(card)

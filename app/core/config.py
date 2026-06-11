@@ -120,10 +120,16 @@ class Config:
         preset: str | None = None,
     ) -> DownloadOptions:
         """Build a DownloadOptions from current config + caller-supplied overrides."""
-        cookie_source_raw = str(self._data.get("cookies_source", CookieSource.NONE.value))
-        try:
-            cookie_source = CookieSource(cookie_source_raw)
-        except ValueError:
+        # Cookies are only applied when the module is explicitly enabled; otherwise
+        # NONE (passing --cookies-from-browser unasked breaks downloads when the
+        # browser's cookie DB is locked).
+        if bool(self._data.get("cookies_enabled", False)):
+            cookie_source_raw = str(self._data.get("cookies_source", CookieSource.BROWSER.value))
+            try:
+                cookie_source = CookieSource(cookie_source_raw)
+            except ValueError:
+                cookie_source = CookieSource.NONE
+        else:
             cookie_source = CookieSource.NONE
 
         cookies_file_raw = str(self._data.get("cookies_file_path", ""))
