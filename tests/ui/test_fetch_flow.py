@@ -53,6 +53,17 @@ def test_build_options_subtitle_uses_chip_selection(window) -> None:  # type: ig
     assert opts.write_auto_subs is False  # manual subtitles only
 
 
+def test_max_concurrent_downloads_is_dynamic(window, mock_config) -> None:  # type: ignore[no-untyped-def]
+    mock_config.set("max_concurrent_downloads", 1)
+    for _ in range(3):
+        window._on_add_to_queue()  # noqa: SLF001
+    assert len(window._running) == 1  # limit honoured, two wait
+
+    mock_config.set("max_concurrent_downloads", 3)
+    window._pump()  # noqa: SLF001  # raising the limit starts the queued jobs now
+    assert len(window._running) == 3
+
+
 def test_build_options_subtitle_maps_region_code(window) -> None:  # type: ignore[no-untyped-def]
     window.state.url = "https://youtube.com/watch?v=abc"
     window.state.mode = c.DownloadMode.SUBTITLE

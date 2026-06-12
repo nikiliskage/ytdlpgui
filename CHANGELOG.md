@@ -56,3 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rectangle — only the themed purple row highlight (Fusion style + no-focus delegate).
 - Failed downloads now show yt-dlp's actual error line (with the full raw error on hover) instead
   of a generic "unexpected error" message.
+- "Max concurrent downloads" now takes effect immediately when changed (it was read only at
+  startup, so the slider did nothing until a restart).
+- Subtitle-only downloads no longer pass `--embed-thumbnail`/`--embed-metadata` (there is no media
+  file to embed into).

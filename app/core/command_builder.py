@@ -229,7 +229,9 @@ def build_command(
                 options.embed_subs,
             )
 
-    builder.embed_extras(options.embed_thumbnail, options.embed_metadata)
+    # Thumbnail/metadata embedding needs a media file; skip it for subtitle-only.
+    if options.mode != DownloadMode.SUBTITLE:
+        builder.embed_extras(options.embed_thumbnail, options.embed_metadata)
     builder.cookies(options.cookie_source, options.browser, options.cookies_file)
 
     return builder.build(options.url)

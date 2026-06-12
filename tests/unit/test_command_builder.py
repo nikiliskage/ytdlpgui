@@ -239,8 +239,16 @@ class TestSubtitleMode:
 
     def test_subtitle_only_ignores_embed(self) -> None:
         # With no media file there is nothing to embed into.
-        opts = _make_opts(mode=DownloadMode.SUBTITLE, embed_subs=True)
-        assert "--embed-subs" not in _args(opts)
+        opts = _make_opts(
+            mode=DownloadMode.SUBTITLE,
+            embed_subs=True,
+            embed_thumbnail=True,
+            embed_metadata=True,
+        )
+        args = _args(opts)
+        assert "--embed-subs" not in args
+        assert "--embed-thumbnail" not in args
+        assert "--embed-metadata" not in args
 
 
 # ---------------------------------------------------------------------------

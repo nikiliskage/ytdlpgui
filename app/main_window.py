@@ -77,7 +77,6 @@ class MainWindow(QWidget):
         self.state = UiState()
         self._ids = itertools.count(1)
         self._runners: dict[str, c.IYtDlpRunner] = {}
-        self._max_concurrent = _as_int(self._cfg("max_concurrent_downloads", 2), 2)
         self._pending: list[tuple[str, c.DownloadOptions]] = []
         self._running: set[str] = set()
         self._job_options: dict[str, c.DownloadOptions] = {}
@@ -258,8 +257,13 @@ class MainWindow(QWidget):
         self._pump()
 
     def _pump(self) -> None:
-        """Start pending jobs until the concurrency limit is reached."""
-        while len(self._running) < self._max_concurrent and self._pending:
+        """Start pending jobs until the concurrency limit is reached.
+
+        The limit is read from config on every pump so changing "Max concurrent
+        downloads" in Settings takes effect immediately (no restart).
+        """
+        max_concurrent = _as_int(self._cfg("max_concurrent_downloads", 2), 2)
+        while len(self._running) < max_concurrent and self._pending:
             job_id, options = self._pending.pop(0)
             runner = self._runner_factory()
             self._runners[job_id] = runner
@@ -406,6 +410,8 @@ class MainWindow(QWidget):
             # Settings may have changed the folder names or subtitle languages.
             self.media_card.refresh_dest()
             self.media_card.refresh_subtitles()
+            # A raised "max concurrent downloads" should start queued jobs now.
+            self._pump()
         self._layout_overlays()
 
     def _toggle_queue(self) -> None:
