@@ -7,3 +7,4 @@ pytest-cov>=5.0
 ruff>=0.6
 mypy>=1.11
 pyinstaller>=6.0
+pillow>=10.0  # tools/make_icon.py — regenerate app/resources/icon.ico
