@@ -71,10 +71,22 @@ def map_stderr(text: str) -> AppError:
                 hint_url=hint,
             )
 
-    # Unknown: include last few raw lines as context.
-    last_lines = "\n".join(line for line in text.splitlines()[-5:] if line.strip())
+    # Unknown: surface yt-dlp's own ERROR line so the failure is diagnosable,
+    # instead of a generic "something went wrong".
     return AppError(
         kind=ErrorKind.UNKNOWN,
-        user_message="An unexpected error occurred.",
-        raw=text if text else last_lines,
+        user_message=_extract_error_line(text) or "An unexpected error occurred.",
+        raw=text,
     )
+
+
+def _extract_error_line(text: str) -> str:
+    """Pull the most relevant yt-dlp error line out of stderr, cleaned up."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    chosen = next((line for line in reversed(lines) if "ERROR" in line.upper()), lines[-1])
+    # Drop the "ERROR:" prefix and any "[extractor] <id>:" prefix.
+    chosen = re.sub(r"^ERROR:\s*", "", chosen, flags=re.IGNORECASE)
+    chosen = re.sub(r"^\[[^\]]+\]\s+[^:]+:\s*", "", chosen)
+    return chosen[:197] + "..." if len(chosen) > 200 else chosen

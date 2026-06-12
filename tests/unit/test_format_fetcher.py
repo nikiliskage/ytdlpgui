@@ -14,18 +14,16 @@ def test_lang_keys_non_dict_is_empty() -> None:
     assert _lang_keys([]) == []
 
 
-def test_parse_media_info_captures_subtitle_langs() -> None:
+def test_parse_media_info_captures_manual_subtitle_langs() -> None:
     data: dict[str, object] = {
         "title": "Clip",
         "subtitles": {"en": [{}], "tr": [{}]},
-        "automatic_captions": {"de": [{}], "fr": [{}]},
+        "automatic_captions": {"de": [{}], "fr": [{}]},  # ignored — manual only
     }
     media = _parse_media_info(data)
     assert media.subtitle_langs == ["en", "tr"]
-    assert media.auto_caption_langs == ["de", "fr"]
 
 
 def test_parse_media_info_without_subtitles() -> None:
     media = _parse_media_info({"title": "Clip"})
     assert media.subtitle_langs == []
-    assert media.auto_caption_langs == []

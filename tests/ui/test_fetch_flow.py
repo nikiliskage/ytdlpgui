@@ -46,10 +46,17 @@ def test_omni_docks_after_fetch(window) -> None:  # type: ignore[no-untyped-def]
 def test_build_options_subtitle_uses_chip_selection(window) -> None:  # type: ignore[no-untyped-def]
     window.state.url = "https://youtube.com/watch?v=abc"
     window.state.mode = c.DownloadMode.SUBTITLE
-    window.state.media = c.MediaInfo(
-        title="X", subtitle_langs=["en"], auto_caption_langs=["de"]
-    )
-    window.state.selected_subs = ["en", "de"]
+    window.state.media = c.MediaInfo(title="X", subtitle_langs=["en", "de"])
+    window.state.selected_subs = ["en"]
     opts = window._build_options()  # noqa: SLF001
-    assert opts.subtitle_langs == ["en", "de"]
-    assert opts.write_auto_subs is True  # 'de' is auto-only → enable auto subs
+    assert opts.subtitle_langs == ["en"]
+    assert opts.write_auto_subs is False  # manual subtitles only
+
+
+def test_build_options_subtitle_maps_region_code(window) -> None:  # type: ignore[no-untyped-def]
+    window.state.url = "https://youtube.com/watch?v=abc"
+    window.state.mode = c.DownloadMode.SUBTITLE
+    window.state.media = c.MediaInfo(title="X", subtitle_langs=["de-DE"])
+    window.state.selected_subs = ["de"]  # configured code
+    opts = window._build_options()  # noqa: SLF001
+    assert opts.subtitle_langs == ["de-DE"]  # mapped to the video's actual code

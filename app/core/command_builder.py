@@ -138,13 +138,20 @@ class YtDlpCommandBuilder:
         write_auto: bool = False,
         embed: bool = False,
     ) -> YtDlpCommandBuilder:
-        """Add subtitle download args."""
+        """Add subtitle args alongside a media download (video mode)."""
         self._add("--write-subs")
         self._add("--sub-langs", ",".join(langs))
         if write_auto:
             self._add("--write-auto-subs")
         if embed:
             self._add("--embed-subs")
+        return self
+
+    def subtitles_only(self, langs: list[str]) -> YtDlpCommandBuilder:
+        """Subtitle-only download: write just the manual subtitle, skip the media."""
+        self._add("--skip-download")
+        self._add("--write-subs")
+        self._add("--sub-langs", ",".join(langs))
         return self
 
     def embed_extras(
@@ -204,13 +211,10 @@ def build_command(
         builder.output(options.audio_dir, options.output_template)
         builder.format_audio(options.audio_format)
     elif options.mode == DownloadMode.SUBTITLE:
-        # Subtitle-only: no video/audio format args, no merge.
+        # Subtitle-only: skip the media, write just the manual subtitle file
+        # (embedding is irrelevant with no media file).
         builder.output(options.video_dir, options.output_template)
-        builder.subtitles(
-            options.subtitle_langs,
-            options.write_auto_subs,
-            options.embed_subs,
-        )
+        builder.subtitles_only(options.subtitle_langs)
     else:
         # VIDEO (default)
         builder.output(options.video_dir, options.output_template)

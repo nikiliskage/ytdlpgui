@@ -93,12 +93,14 @@ class QueueRow(QWidget):
                 f"<span style='color:{color};font-weight:600'>{word}</span> · " + " · ".join(bits)
             )
 
-    def set_state(self, state: c.JobState, message: str = "") -> None:
+    def set_state(self, state: c.JobState, message: str = "", detail: str = "") -> None:
         word, color = _STATUS_WORD[state]
         text = f"<span style='color:{color};font-weight:600'>{word}</span>"
         if message:
             text += f" · {message}"
         self._meta.setText(text)
+        # Full raw error on hover (the visible message may be clipped).
+        self.setToolTip(detail)
         chunk = {
             c.JobState.COMPLETED: "#3ecf8e",
             c.JobState.FAILED: "#ff5470",

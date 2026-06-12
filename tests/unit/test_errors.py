@@ -45,6 +45,18 @@ def test_empty_string_returns_unknown() -> None:
     assert error.kind == ErrorKind.UNKNOWN
 
 
+def test_unknown_surfaces_cleaned_error_line() -> None:
+    """UNKNOWN errors expose yt-dlp's own ERROR line (prefixes stripped)."""
+    text = (
+        "[youtube] dQw4w9WgXcQ: Downloading webpage\n"
+        "ERROR: [youtube] dQw4w9WgXcQ: Unable to download subtitles for 'ar'"
+    )
+    error = map_stderr(text)
+    assert error.kind == ErrorKind.UNKNOWN
+    assert error.user_message == "Unable to download subtitles for 'ar'"
+    assert text in error.raw
+
+
 def test_map_stderr_is_pure() -> None:
     """Calling map_stderr twice with the same input returns equal results."""
     text = "ERROR: HTTP Error 403: Forbidden"

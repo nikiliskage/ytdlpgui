@@ -226,17 +226,21 @@ class TestSubtitleMode:
         args = _args(opts)
         assert "-x" not in args
 
-    def test_write_auto_subs_optional(self) -> None:
-        opts_no = _make_opts(mode=DownloadMode.SUBTITLE, write_auto_subs=False)
-        opts_yes = _make_opts(mode=DownloadMode.SUBTITLE, write_auto_subs=True)
-        assert "--write-auto-subs" not in _args(opts_no)
-        assert "--write-auto-subs" in _args(opts_yes)
+    def test_subtitle_only_skips_media_download(self) -> None:
+        opts = _make_opts(mode=DownloadMode.SUBTITLE)
+        assert "--skip-download" in _args(opts)
 
-    def test_embed_subs_optional(self) -> None:
-        opts_no = _make_opts(mode=DownloadMode.SUBTITLE, embed_subs=False)
-        opts_yes = _make_opts(mode=DownloadMode.SUBTITLE, embed_subs=True)
-        assert "--embed-subs" not in _args(opts_no)
-        assert "--embed-subs" in _args(opts_yes)
+    def test_subtitle_only_uses_manual_write_subs(self) -> None:
+        # Manual subtitles only — auto-translations are rate-limited by YouTube.
+        opts = _make_opts(mode=DownloadMode.SUBTITLE, write_auto_subs=True)
+        args = _args(opts)
+        assert "--write-subs" in args
+        assert "--write-auto-subs" not in args
+
+    def test_subtitle_only_ignores_embed(self) -> None:
+        # With no media file there is nothing to embed into.
+        opts = _make_opts(mode=DownloadMode.SUBTITLE, embed_subs=True)
+        assert "--embed-subs" not in _args(opts)
 
 
 # ---------------------------------------------------------------------------

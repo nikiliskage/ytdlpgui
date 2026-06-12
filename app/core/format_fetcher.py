@@ -76,12 +76,11 @@ def _parse_media_info(data: dict[str, object]) -> MediaInfo:
         webpage_url=str(data.get("webpage_url") or ""),
         needs_cookies=needs_cookies,
         subtitle_langs=_lang_keys(data.get("subtitles")),
-        auto_caption_langs=_lang_keys(data.get("automatic_captions")),
     )
 
 
 def _lang_keys(value: object) -> list[str]:
-    """Sorted language codes from a yt-dlp subtitles/automatic_captions dict."""
+    """Sorted language codes from a yt-dlp ``subtitles`` dict."""
     if isinstance(value, dict):
         return sorted(str(k) for k in value)
     return []

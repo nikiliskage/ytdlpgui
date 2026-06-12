@@ -66,6 +66,24 @@ def lang_label(code: str) -> str:
     return _LANG_LABELS.get(code, code)
 
 
+def _base_lang(code: str) -> str:
+    """Primary subtag of a BCP-47-ish code: 'de-DE' / 'de-orig' → 'de'."""
+    return code.split("-")[0].lower()
+
+
+def match_subtitle_code(lang: str, available: list[str]) -> str | None:
+    """Find the video's subtitle code for a configured *lang*, region-insensitive.
+
+    Prefers an exact match, then any code sharing the primary subtag (so a
+    configured ``de`` matches a video's ``de-DE``). Returns the actual video
+    code to request from yt-dlp, or ``None`` if the video has no such subtitle.
+    """
+    if lang in available:
+        return lang
+    base = _base_lang(lang)
+    return next((code for code in available if _base_lang(code) == base), None)
+
+
 @dataclass
 class UiState:
     """Single source of truth for the main window's interactive state."""

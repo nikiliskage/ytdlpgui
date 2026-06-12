@@ -11,6 +11,7 @@ from collections.abc import Callable
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -24,7 +25,6 @@ from PySide6.QtWidgets import (
 from app import __version__, icons
 from app.core import contracts as c
 from app.ui_state import SUBTITLE_LANGS
-from app.widgets.flow_layout import FlowLayout
 from app.widgets.path_field import PathField
 from app.widgets.toggle import Toggle
 
@@ -89,26 +89,26 @@ class _MultiPills(QWidget):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        # Report height-for-width so the wrapping flow layout sizes correctly
-        # inside the vertical settings body.
-        policy = self.sizePolicy()
-        policy.setHeightForWidth(True)
-        self.setSizePolicy(policy)
-        flow = FlowLayout(self, spacing=6)
+        columns = 3
+        grid = QGridLayout(self)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(6)
         self._order = [code for code, _ in options]
         self._max = max_selected
         # Keep at most _max, preserving option order.
         kept = [code for code in self._order if code in selected][:max_selected]
         self._selected: set[str] = set(kept)
         self._pills: dict[str, QPushButton] = {}
-        for code, label in options:
+        for i, (code, label) in enumerate(options):
             pill = QPushButton(label)
             pill.setProperty("class", "pill")
             pill.setCheckable(True)
             pill.setCursor(Qt.CursorShape.PointingHandCursor)
             pill.clicked.connect(lambda _=False, code=code: self._toggle(code))
-            flow.addWidget(pill)
+            grid.addWidget(pill, i // columns, i % columns, Qt.AlignmentFlag.AlignLeft)
             self._pills[code] = pill
+        grid.setColumnStretch(columns, 1)  # trailing spacer keeps the grid left-packed
         self._refresh()
 
     def selected(self) -> list[str]:

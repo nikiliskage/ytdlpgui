@@ -1,9 +1,8 @@
-"""Subtitle-language chips for the media card (single-select).
+"""Subtitle-language chips for the media card (single-select, manual subs only).
 
-Built from the languages the user configured in Settings. After a fetch the
-chips that the video actually offers (manual or auto captions) stay selectable;
-the rest are disabled (greyed) so it's clear they can't be downloaded. Only one
-language can be active at a time.
+Built from the languages the user configured in Settings. After a fetch, a
+configured language is selectable only if the video has a manually-uploaded
+subtitle in it; the rest are disabled (greyed). Only one language at a time.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ from app.ui_state import lang_label
 
 
 class _SubChip(QPushButton):
-    """A checkable chip showing a language label with a faint code suffix."""
+    """A checkable chip showing a language label with its code."""
 
     def __init__(self, code: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -42,8 +41,7 @@ class SubtitleChips(QWidget):
     def set_langs(self, configured: list[str], available: set[str]) -> None:
         """Rebuild chips for *configured* langs; enable those in *available*.
 
-        Pre-selects the first available language (in configured order) so the
-        common case needs no extra clicks.
+        Pre-selects the first available language (in configured order).
         """
         while self._layout.count():
             item = self._layout.takeAt(0)
@@ -62,7 +60,7 @@ class SubtitleChips(QWidget):
                 Qt.CursorShape.PointingHandCursor if usable else Qt.CursorShape.ArrowCursor
             )
             if not usable:
-                chip.setToolTip("No subtitles in this language for this video.")
+                chip.setToolTip("No subtitle in this language for this video.")
             chip.clicked.connect(lambda _=False, c=code: self._select(c))
             self._layout.addWidget(chip)
             self._chips[code] = chip
@@ -75,14 +73,15 @@ class SubtitleChips(QWidget):
         return [self._selected] if self._selected else []
 
     def has_unavailable(self) -> bool:
-        """True if any configured language is missing for the current video."""
+        """True if any configured language has no manual subtitle for this video."""
         return any(code not in self._available for code in self._chips)
 
     def _select(self, code: str) -> None:
-        if code not in self._available:
+        # Radio behaviour: one language stays selected whenever any is available;
+        # clicking the active chip (or a disabled one) does nothing.
+        if code not in self._available or code == self._selected:
             return
-        # Single-select: clicking the active chip clears it, else it becomes the one.
-        self._selected = None if code == self._selected else code
+        self._selected = code
         self._refresh()
         self.changed.emit(self.selected())
 

@@ -26,13 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the real yt-dlp/ffmpeg version checks. Concurrency-limited queue in the main window
   (default max 2, others wait and auto-start). PyInstaller spec (`ytdlpgui.spec`,
   single-file GUI; binaries stay external).
-- Subtitle language selection: Settings offers common languages (pick up to 2); the media
-  card shows single-select chips built from your configured languages and greys out the ones
-  the video doesn't provide. `MediaInfo` now carries the video's available subtitle/auto-caption
-  languages.
+- Subtitle language selection: Settings offers common languages (pick up to 2); the media card
+  shows single-select chips built from your configured languages. A language is selectable only
+  when the video has a manually-uploaded subtitle in it — the rest are greyed out (auto-translated
+  captions are rate-limited by YouTube and unreliable, so they aren't offered). Subtitle downloads
+  skip the media (`--skip-download`) and write only the chosen language. `MediaInfo` carries the
+  video's available manual subtitle languages.
 - Per-folder **Save** buttons for the Videos/Music output folders (changes persist on click —
   or Enter — with a brief purple "Saved" confirmation; unsaved edits are discarded on reopen).
-- New widgets: `FlowLayout` (wrapping pill layout) and `SubtitleChips`.
+- New widget: `SubtitleChips` (single-select subtitle-language chips).
 - 152 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).
 
 ### Changed
@@ -52,3 +54,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Queue panel scrolls when the list is long instead of squashing rows on top of each other.
 - Format table no longer shows the native Windows accent selection bar or per-cell focus
   rectangle — only the themed purple row highlight (Fusion style + no-focus delegate).
+- Failed downloads now show yt-dlp's actual error line (with the full raw error on hover) instead
+  of a generic "unexpected error" message.

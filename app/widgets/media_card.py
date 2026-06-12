@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 
 from app import icons
 from app.core import contracts as c
-from app.ui_state import UiState, first_chip_id
+from app.ui_state import UiState, first_chip_id, match_subtitle_code
 from app.widgets.format_table import FormatTable
 from app.widgets.quality_chips import QualityChips
 from app.widgets.segmented_switch import SegmentedSwitch
@@ -131,7 +131,7 @@ class MediaCard(QWidget):
         layout.addLayout(controls)
 
         # note shown in subtitle mode when some configured language is missing
-        self._sub_note = QLabel("Greyed-out languages have no subtitles for this video.")
+        self._sub_note = QLabel("Greyed-out languages have no subtitle for this video.")
         self._sub_note.setStyleSheet("font-size:11px;color:#6b6b78;")
         self._sub_note.setContentsMargins(0, 8, 0, 0)
         self._sub_note.setVisible(False)
@@ -205,6 +205,11 @@ class MediaCard(QWidget):
         """Re-read the configured folder name (call after settings may change)."""
         self._dest_label.setText(self._dest_name(self._state.mode == c.DownloadMode.AUDIO))
 
+    def refresh_subtitles(self) -> None:
+        """Re-read configured subtitle languages (call after settings change)."""
+        if self._state.mode == c.DownloadMode.SUBTITLE:
+            self._refresh_subs()
+
     # -- populate -------------------------------------------------------------
     def set_media(self, media: c.MediaInfo, formats: list[c.FormatInfo]) -> None:
         self._state.media = media  # availability source for subtitle chips
@@ -248,12 +253,16 @@ class MediaCard(QWidget):
         return ["en", "tr"]
 
     def _refresh_subs(self) -> None:
-        """Rebuild subtitle chips from settings + this video's availability."""
+        """Rebuild subtitle chips from settings + this video's manual subtitles.
+
+        A configured language counts as available if the video has a manual
+        subtitle in it, matching region variants (de ↔ de-DE).
+        """
         media = self._state.media
-        available: set[str] = set()
-        if media is not None:
-            available = set(media.subtitle_langs) | set(media.auto_caption_langs)
-        self.sub_chips.set_langs(self._configured_subs(), available)
+        codes = media.subtitle_langs if media is not None else []
+        configured = self._configured_subs()
+        available = {c for c in configured if match_subtitle_code(c, codes) is not None}
+        self.sub_chips.set_langs(configured, available)
         self._sub_note.setVisible(self.sub_chips.has_unavailable())
 
     def _on_subs_changed(self, langs: list[str]) -> None:

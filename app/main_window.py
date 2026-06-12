@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.core import contracts as c
-from app.ui_state import UiState
+from app.ui_state import UiState, match_subtitle_code
 from app.widgets.dock import Dock
 from app.widgets.error_band import ErrorBand
 from app.widgets.fly_to_dock import fly_to_dock
@@ -345,15 +345,17 @@ class MainWindow(QWidget):
                 opts.audio_format = self.state.quality
             elif self.state.quality == "bestaudio":
                 opts.audio_format = "best"
-        # In Subtitle mode, the on-screen chip selection (max 2) drives which
-        # languages download; enable auto-subs if a pick is auto-only.
+        # In Subtitle mode, the on-screen chip (single-select) drives the
+        # language; we only ever offer manual subtitles (auto-translations are
+        # rate-limited by YouTube). Map the pick to the video's actual code so a
+        # configured "de" downloads the video's "de-DE".
         elif self.state.mode == c.DownloadMode.SUBTITLE and self.state.selected_subs:
-            opts.subtitle_langs = list(self.state.selected_subs)
             media = self.state.media
-            if media is not None:
-                manual = set(media.subtitle_langs)
-                if any(lang not in manual for lang in opts.subtitle_langs):
-                    opts.write_auto_subs = True
+            codes = media.subtitle_langs if media is not None else []
+            opts.subtitle_langs = [
+                match_subtitle_code(lang, codes) or lang for lang in self.state.selected_subs
+            ]
+            opts.write_auto_subs = False
         return opts
 
     def _bare_options(self, fmt: str | None) -> c.DownloadOptions:
@@ -376,7 +378,8 @@ class MainWindow(QWidget):
         row = self.queue_panel.row(job_id)
         if row is not None:
             msg = error.user_message if error else ""
-            row.set_state(state, msg)
+            detail = error.raw if error else ""
+            row.set_state(state, msg, detail)
         self._running.discard(job_id)
         self._runners.pop(job_id, None)
         self._pump()
@@ -400,8 +403,9 @@ class MainWindow(QWidget):
             self.scrim.raise_()
             self.settings_panel.raise_()
         else:
-            # Folder names may have changed in settings; refresh the card label.
+            # Settings may have changed the folder names or subtitle languages.
             self.media_card.refresh_dest()
+            self.media_card.refresh_subtitles()
         self._layout_overlays()
 
     def _toggle_queue(self) -> None:
