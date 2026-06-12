@@ -148,7 +148,9 @@ class MainWindow(QWidget):
         self._content_layout.addWidget(self.skeleton, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.media_card = MediaCard(self.state, self._reduced_motion, config=self._config)
-        self.media_card.setMaximumWidth(900)
+        # Fixed to the omni-bar width so the centred content never jumps when
+        # switching Video/Audio/Subtitle modes changes the number of chips.
+        self.media_card.setFixedWidth(660)
         self.media_card.setVisible(False)
         self.media_card.add_to_queue.connect(self._on_add_to_queue)
         self.media_card.enable_cookies.connect(self._on_enable_cookies)

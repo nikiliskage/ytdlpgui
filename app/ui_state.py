@@ -26,7 +26,7 @@ CHIPS_BY_MODE: dict[c.DownloadMode, list[tuple[str, str, str]]] = {
         ("480p", "480p", "mp4"),
     ],
     c.DownloadMode.AUDIO: [
-        ("bestaudio", "Best audio", "auto"),
+        ("bestaudio", "Best", "auto"),
         ("opus", "opus", "160k"),
         ("mp3", "mp3", "320k"),
         ("m4a", "m4a", "128k"),

@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings panel: more vertical spacing; Videos/Music inputs aligned with Base directory; subtitle
   languages are a multi-select (capped at 2) instead of a free-text field.
 - The media-card destination label reflects the configured output folder name.
+- The media card is a fixed width matching the omni bar, so switching
+  Video/Audio/Subtitle modes (different chip counts) no longer shifts the
+  centred content. The Audio "Best" chip is relabelled to match the Video one.
 - A fixed Fusion dark theme/palette is applied app-wide so the UI no longer follows the OS
   light/dark setting (native window chrome and disabled controls stay dark).
 
