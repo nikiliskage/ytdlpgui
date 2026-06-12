@@ -41,6 +41,7 @@ _PROGRESS_TEMPLATE = (
     "|%(progress.eta)s"
 )
 
+
 def _video_selector(cap: str = "") -> str:
     """Format selector preferring AAC (m4a) audio so the merged mp4 stays playable.
 
