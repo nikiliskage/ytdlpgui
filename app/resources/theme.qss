@@ -29,6 +29,8 @@ QWidget {
 #TitleBar {
     border-bottom: 1px solid #2c2c35;
     background: #1d1d23;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
 }
 #TitleBar QLabel#AppName { font-size: 13px; font-weight: 600; }
 .tb-btn {
@@ -178,6 +180,12 @@ QPushButton#QueueBtn:hover { background: #b974ff; }
     color: #b974ff;
     font-weight: 600;
 }
+/* Unavailable subtitle language: dimmed + dashed so it reads as "not offered". */
+.chip:disabled {
+    background: transparent;
+    border: 1px dashed #34343e;
+    color: #55555f;
+}
 
 /* ---------- Advanced formats ---------- */
 QPushButton#AdvToggle {
@@ -193,9 +201,13 @@ QPushButton#AdvToggle:hover { color: #e8e8ee; }
     gridline-color: transparent;
     font-size: 12px;
     color: #9a9aa6;
+    outline: 0;
+    selection-background-color: rgba(168,85,247,0.14);
+    selection-color: #e8e8ee;
 }
 #FormatTable::item { padding: 6px 10px; border-bottom: 1px solid #2c2c35; }
 #FormatTable::item:selected { background: rgba(168,85,247,0.14); color: #e8e8ee; }
+#FormatTable::item:focus { background: rgba(168,85,247,0.14); color: #e8e8ee; }
 #FormatTable QHeaderView::section {
     background: #1a1a1f;
     color: #6b6b78;
@@ -210,6 +222,8 @@ QPushButton#AdvToggle:hover { color: #e8e8ee; }
 #Dock {
     border-top: 1px solid #2c2c35;
     background: #1d1d23;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
 }
 .dock-item { background: transparent; border: none; border-radius: 10px; }
 .dock-item:hover { background: rgba(255,255,255,0.04); }
@@ -229,6 +243,10 @@ QLabel#DockEmpty { color: #6b6b78; font-size: 12px; }
     background: #202028;
     border-top: 1px solid #34343e;
 }
+/* Keep the rows scroll area transparent so the panel background shows through
+   (otherwise it follows the OS palette and turns white in a light theme). */
+#QpScroll { background: transparent; border: none; }
+#QpScroll > QWidget > QWidget { background: transparent; }
 QLabel#QpTitle { font-size: 13px; font-weight: 600; }
 QLabel#QpCount { font-size: 11px; color: #6b6b78; }
 QPushButton#QpClear {
@@ -243,14 +261,20 @@ QPushButton#QpClear:hover { color: #e8e8ee; }
 .q-act:hover { background: rgba(255,255,255,0.06); color: #e8e8ee; }
 
 /* ---------- Scrim ---------- */
-#Scrim { background: rgba(10,10,14,0.45); }
+#Scrim { background: rgba(10,10,14,0.45); border-radius: 12px; }
 
 /* ---------- Settings panel ---------- */
 #SettingsPanel {
     background: #202028;
     border-left: 1px solid #34343e;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
 }
 #SpHead { border-bottom: 1px solid #2c2c35; }
+/* Keep the scroll body transparent so the panel's dark background shows through
+   (otherwise it follows the OS palette and turns white in a light Windows theme). */
+#SpScroll { background: transparent; border: none; }
+#SpScroll > QWidget > QWidget { background: transparent; }
 QLabel#SpTitle { font-size: 15px; font-weight: 600; }
 QLabel.sp-section-label {
     font-size: 10px; font-weight: 700; color: #6b6b78;
@@ -276,6 +300,11 @@ QPushButton.sp-browse {
     border-radius: 7px;
 }
 QPushButton.sp-browse:hover { color: #e8e8ee; border: 1px solid #6b6b78; }
+QPushButton.sp-browse[saved="true"] {
+    background: #a855f7;
+    border: 1px solid #a855f7;
+    color: #ffffff;
+}
 QLabel.sp-status-ok { color: #3ecf8e; font-size: 11px; }
 QLabel.sp-status-bad { color: #ff5470; font-size: 11px; }
 .pill {

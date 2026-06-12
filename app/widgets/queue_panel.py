@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -133,7 +134,8 @@ class QueuePanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        head = QHBoxLayout()
+        self._head = QWidget()
+        head = QHBoxLayout(self._head)
         head.setContentsMargins(20, 14, 20, 10)
         head.setSpacing(10)
         title = QLabel("Download queue")
@@ -148,12 +150,22 @@ class QueuePanel(QWidget):
         clear.setCursor(Qt.CursorShape.PointingHandCursor)
         clear.clicked.connect(self.clear_completed.emit)
         head.addWidget(clear)
-        layout.addLayout(head)
+        layout.addWidget(self._head)
 
-        self._list = QVBoxLayout()
+        # Rows live in a scroll area so a long queue scrolls instead of the
+        # fixed-height overlay squashing rows on top of each other.
+        scroll = QScrollArea()
+        scroll.setObjectName("QpScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        list_host = QWidget()
+        self._list = QVBoxLayout(list_host)
         self._list.setContentsMargins(12, 0, 12, 12)
         self._list.setSpacing(2)
-        layout.addLayout(self._list)
+        self._list.addStretch(1)  # keep rows top-aligned; new rows insert above
+        scroll.setWidget(list_host)
+        layout.addWidget(scroll, 1)
 
         self._opacity_anim = QPropertyAnimation(self, b"windowOpacity", self)
         self._opacity_anim.setDuration(1 if reduced_motion else 300)
@@ -161,10 +173,21 @@ class QueuePanel(QWidget):
 
     def add_row(self, job_id: str, title: str) -> QueueRow:
         row = QueueRow(job_id, title)
-        self._list.addWidget(row)
+        # Insert before the trailing stretch (last item) so rows stay top-aligned.
+        self._list.insertWidget(self._list.count() - 1, row)
         self._rows[job_id] = row
         self._update_count()
         return row
+
+    def content_height(self) -> int:
+        """Natural height for header + all rows (before the overlay caps it).
+
+        The main window uses this to size the bottom-sheet; the scroll area then
+        handles any overflow beyond the cap.
+        """
+        head_h = self._head.sizeHint().height()
+        rows_h = sum(r.sizeHint().height() + self._list.spacing() for r in self._rows.values())
+        return head_h + rows_h + 14  # + list bottom margin
 
     def remove_row(self, job_id: str) -> None:
         row = self._rows.pop(job_id, None)

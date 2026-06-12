@@ -14,7 +14,13 @@ Architecture notes
 
 from __future__ import annotations
 
+import contextlib
+import glob
+import os
 import shutil
+import subprocess
+import sys
+import time
 
 from app.core.contracts import (
     AppError,
@@ -179,6 +185,10 @@ class YtDlpRunner(QObject):
         self._process: QProcess | None = None
         self._stderr_buf: str = ""
         self._line_buffer: LineBuffer = LineBuffer()
+        self._canceled: bool = False
+        # Output paths yt-dlp announces for this job ("Destination:"/"Merging
+        # formats into"); used to delete leftover partials on cancel/failure.
+        self._dest_files: set[str] = set()
 
     # ------------------------------------------------------------------
     # IYtDlpRunner interface
@@ -213,6 +223,8 @@ class YtDlpRunner(QObject):
 
         self._line_buffer = LineBuffer()
         self._stderr_buf = ""
+        self._canceled = False
+        self._dest_files = set()
 
         if not _QT_AVAILABLE:  # pragma: no cover
             return
@@ -229,10 +241,28 @@ class YtDlpRunner(QObject):
         process.start(program, arguments)
 
     def cancel(self) -> None:
-        """Terminate the running process (.part file is preserved)."""
+        """Forcibly stop the running process and clean up partial files.
+
+        Uses kill(): yt-dlp is a console app and ignores QProcess.terminate()
+        (WM_CLOSE) on Windows, so the download would otherwise keep running.
+        Once the process is gone, _on_process_finished deletes the partial
+        files (.part/.ytdl/fragments) this job wrote into the output folder.
+        """
         if self._process is not None and _QT_AVAILABLE:
-            self._process.terminate()
-            # Do NOT call waitForFinished here; _on_process_finished will fire.
+            self._canceled = True
+            # Kill the whole process tree: yt-dlp may have spawned ffmpeg/a
+            # downloader child that QProcess.kill() would leave running (and it
+            # could still move a finished file into the output folder).
+            pid = self._process.processId()
+            if sys.platform == "win32" and pid:
+                with contextlib.suppress(Exception):
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(pid)],
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                        capture_output=True,
+                    )
+            self._process.kill()
+            # _on_process_finished will fire and report CANCELED.
 
     # ------------------------------------------------------------------
     # QProcess slots
@@ -250,8 +280,9 @@ class YtDlpRunner(QObject):
             return
         raw = bytes(self._process.readAllStandardError().data()).decode("utf-8", errors="replace")
         self._stderr_buf += raw
-        if self._on_log:
-            for line in raw.splitlines():
+        for line in raw.splitlines():
+            self._scan_destination(line)
+            if self._on_log:
                 self._on_log(line)
 
     def _on_process_finished(self, exit_code: int, exit_status: object) -> None:
@@ -259,12 +290,20 @@ class YtDlpRunner(QObject):
         for line in self._line_buffer.flush():
             self._dispatch_line(line)
 
-        if exit_code == 0:
+        error: AppError | None = None
+        if self._canceled:
+            state = JobState.CANCELED
+        elif exit_code == 0:
             state = JobState.COMPLETED
-            error: AppError | None = None
         else:
             state = JobState.FAILED
             error = map_stderr(self._stderr_buf)
+
+        # On cancel/failure, delete the partial files this job wrote so the
+        # output folder never keeps a half-finished download. On success the
+        # final file stays (yt-dlp already removed its own intermediates).
+        if state is not JobState.COMPLETED:
+            self._cleanup_partials()
 
         if self._on_finished:
             self._on_finished(state, error)
@@ -278,9 +317,57 @@ class YtDlpRunner(QObject):
         if prog is not None:
             if self._on_progress:
                 self._on_progress(prog)
-        else:
-            if line.strip() and self._on_log:
-                self._on_log(line)
+            return
+        self._scan_destination(line)
+        if line.strip() and self._on_log:
+            self._on_log(line)
+
+    def _scan_destination(self, line: str) -> None:
+        """Record output paths yt-dlp announces so we can delete partials later.
+
+        yt-dlp prints one ``[...] Destination: <path>`` per stream/extracted
+        file, and ``Merging formats into "<path>"`` for the merged result. The
+        on-disk partial is that path or ``<path>.part`` (plus ``.ytdl`` and
+        ``.part-FragN`` fragment files).
+        """
+        marker = "Destination: "
+        idx = line.find(marker)
+        if idx != -1:
+            path = line[idx + len(marker) :].strip().strip('"')
+            if path:
+                self._dest_files.add(path)
+            return
+        if "Merging formats into " in line:
+            first = line.find('"')
+            last = line.rfind('"')
+            if first != -1 and last > first:
+                self._dest_files.add(line[first + 1 : last])
+
+    def _cleanup_partials(self) -> None:
+        """Delete this job's leftover files from the output folder.
+
+        Removes each announced destination plus its ``.part``/``.ytdl`` and
+        fragment siblings. Scoped to the paths *this* job reported, so a
+        concurrent download into the same folder is never touched.
+        """
+        for dest in self._dest_files:
+            self._remove_path(dest)
+            self._remove_path(dest + ".ytdl")
+            for sibling in glob.glob(glob.escape(dest) + ".part*"):
+                self._remove_path(sibling)
+        self._dest_files.clear()
+
+    @staticmethod
+    def _remove_path(path: str) -> None:
+        """Delete a file, retrying briefly while a killed child still holds it."""
+        for _ in range(10):
+            if not os.path.exists(path):
+                return
+            try:
+                os.remove(path)
+                return
+            except OSError:
+                time.sleep(0.1)
 
     @staticmethod
     def _locate_ytdlp() -> str:

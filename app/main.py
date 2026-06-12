@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QColor, QGuiApplication, QPalette
 from PySide6.QtWidgets import QApplication
 
 from app.core import paths
@@ -46,6 +46,37 @@ def _build_steps(config: Config) -> list[Step]:
     ]
 
 
+def _apply_static_dark_theme(app: QApplication) -> None:
+    """Force a fixed Fusion style + dark palette so the UI never follows the OS
+    light/dark theme (native widgets like the window/close buttons would
+    otherwise turn light on a light Windows theme)."""
+    app.setStyle("Fusion")
+    pal = QPalette()
+    bg, base, surface, text, muted, accent = (
+        QColor("#1a1a1f"),
+        QColor("#1a1a1f"),
+        QColor("#24242c"),
+        QColor("#e8e8ee"),
+        QColor("#6b6b78"),
+        QColor("#a855f7"),
+    )
+    pal.setColor(QPalette.ColorRole.Window, bg)
+    pal.setColor(QPalette.ColorRole.WindowText, text)
+    pal.setColor(QPalette.ColorRole.Base, base)
+    pal.setColor(QPalette.ColorRole.AlternateBase, surface)
+    pal.setColor(QPalette.ColorRole.Text, text)
+    pal.setColor(QPalette.ColorRole.Button, surface)
+    pal.setColor(QPalette.ColorRole.ButtonText, text)
+    pal.setColor(QPalette.ColorRole.ToolTipBase, surface)
+    pal.setColor(QPalette.ColorRole.ToolTipText, text)
+    pal.setColor(QPalette.ColorRole.PlaceholderText, muted)
+    pal.setColor(QPalette.ColorRole.Highlight, accent)
+    pal.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
+    pal.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, muted)
+    pal.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, muted)
+    app.setPalette(pal)
+
+
 def _center(widget: MainWindow | Splash) -> None:
     screen = QGuiApplication.primaryScreen()
     if screen is None:
@@ -58,6 +89,7 @@ def _center(widget: MainWindow | Splash) -> None:
 
 def main() -> int:
     app = QApplication(sys.argv)
+    _apply_static_dark_theme(app)
     config = Config()
     # Apply the theme app-wide so every top-level widget (splash included) is
     # styled — a stylesheet set only on the main window would not reach the splash.

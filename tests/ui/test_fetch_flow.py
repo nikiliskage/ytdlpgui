@@ -41,3 +41,15 @@ def test_omni_docks_after_fetch(window) -> None:  # type: ignore[no-untyped-def]
     window.omni.input.setText("https://youtube.com/watch?v=abc")
     window.omni.fetch_btn.click()
     assert not window.omni._hero.isVisible()  # noqa: SLF001
+
+
+def test_build_options_subtitle_uses_chip_selection(window) -> None:  # type: ignore[no-untyped-def]
+    window.state.url = "https://youtube.com/watch?v=abc"
+    window.state.mode = c.DownloadMode.SUBTITLE
+    window.state.media = c.MediaInfo(
+        title="X", subtitle_langs=["en"], auto_caption_langs=["de"]
+    )
+    window.state.selected_subs = ["en", "de"]
+    opts = window._build_options()  # noqa: SLF001
+    assert opts.subtitle_langs == ["en", "de"]
+    assert opts.write_auto_subs is True  # 'de' is auto-only → enable auto subs

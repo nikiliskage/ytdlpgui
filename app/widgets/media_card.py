@@ -23,6 +23,7 @@ from app.ui_state import UiState, first_chip_id
 from app.widgets.format_table import FormatTable
 from app.widgets.quality_chips import QualityChips
 from app.widgets.segmented_switch import SegmentedSwitch
+from app.widgets.subtitle_chips import SubtitleChips
 
 
 def _fmt_duration(seconds: int | None) -> str:
@@ -81,20 +82,20 @@ class MediaCard(QWidget):
         state: UiState,
         reduced_motion: bool = False,
         parent: QWidget | None = None,
+        config: c.IConfig | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("MediaCard")
         self._state = state
+        self._config = config
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(0)
 
-        # head row -------------------------------------------------------------
+        # head row (title + channel/duration; thumbnail intentionally omitted) ---
         head = QHBoxLayout()
         head.setSpacing(18)
-        self._thumb = _Thumb()
-        head.addWidget(self._thumb)
 
         meta = QVBoxLayout()
         meta.setSpacing(6)
@@ -123,7 +124,18 @@ class MediaCard(QWidget):
         self.chips = QualityChips()
         self.chips.chip_selected.connect(self._on_chip_selected)
         controls.addWidget(self.chips, 1)
+        self.sub_chips = SubtitleChips()
+        self.sub_chips.changed.connect(self._on_subs_changed)
+        self.sub_chips.setVisible(False)
+        controls.addWidget(self.sub_chips, 1)
         layout.addLayout(controls)
+
+        # note shown in subtitle mode when some configured language is missing
+        self._sub_note = QLabel("Greyed-out languages have no subtitles for this video.")
+        self._sub_note.setStyleSheet("font-size:11px;color:#6b6b78;")
+        self._sub_note.setContentsMargins(0, 8, 0, 0)
+        self._sub_note.setVisible(False)
+        layout.addWidget(self._sub_note)
 
         # advanced formats -----------------------------------------------------
         self.formats = FormatTable(reduced_motion)
@@ -138,10 +150,10 @@ class MediaCard(QWidget):
         footer = QHBoxLayout()
         footer.setContentsMargins(0, 18, 0, 0)
         footer.setSpacing(12)
-        self._dest = QLabel("videos\\")
+        self._dest = QLabel()
         self._dest.setObjectName("McDest")
         self._dest.setPixmap(icons.pixmap("folder", "#6b6b78", 14))
-        self._dest_label = QLabel("videos\\")
+        self._dest_label = QLabel(self._dest_name(self._state.mode == c.DownloadMode.AUDIO))
         self._dest_label.setObjectName("McDest")
         footer.addWidget(self._dest)
         footer.addWidget(self._dest_label)
@@ -175,25 +187,77 @@ class MediaCard(QWidget):
         row.addWidget(link)
         return band
 
+    # -- destination label ----------------------------------------------------
+    def _dest_name(self, is_audio: bool) -> str:
+        """Footer label = the configured subfolder name (e.g. 'videosad\\')."""
+        key = "audio_subfolder" if is_audio else "video_subfolder"
+        name = "musics" if is_audio else "videos"
+        if self._config is not None:
+            try:
+                value = self._config.get(key)
+            except Exception:
+                value = None
+            if value:
+                name = str(value)
+        return f"{name}\\"
+
+    def refresh_dest(self) -> None:
+        """Re-read the configured folder name (call after settings may change)."""
+        self._dest_label.setText(self._dest_name(self._state.mode == c.DownloadMode.AUDIO))
+
     # -- populate -------------------------------------------------------------
     def set_media(self, media: c.MediaInfo, formats: list[c.FormatInfo]) -> None:
+        self._state.media = media  # availability source for subtitle chips
         self._title.setText(media.title)
         channel = media.channel or "—"
         dur = _fmt_duration(media.duration)
         self._channel.setText(f"{channel}  ·  {dur}")
-        self._thumb.set_duration(dur)
         self._cookie_band.setVisible(media.needs_cookies)
         self.formats.set_formats(formats)
+        self.refresh_dest()
+        if self._state.mode == c.DownloadMode.SUBTITLE:
+            self._refresh_subs()  # availability is known now
 
     # -- selection logic ------------------------------------------------------
     def _on_mode_changed(self, mode: object) -> None:
         dl_mode = c.DownloadMode(str(mode))
         self._state.set_mode(dl_mode)
-        self.chips.set_mode(dl_mode)
+        is_sub = dl_mode == c.DownloadMode.SUBTITLE
+        if not is_sub:
+            self.chips.set_mode(dl_mode)
+        self.chips.setVisible(not is_sub)
+        self.sub_chips.setVisible(is_sub)
         self.formats.clear_selection()
-        self.formats.set_visible_section(dl_mode != c.DownloadMode.SUBTITLE)
-        is_audio = dl_mode == c.DownloadMode.AUDIO
-        self._dest_label.setText("musics\\" if is_audio else "videos\\")
+        self.formats.set_visible_section(not is_sub)
+        self._dest_label.setText(self._dest_name(dl_mode == c.DownloadMode.AUDIO))
+        if is_sub:
+            self._refresh_subs()
+        else:
+            self._sub_note.setVisible(False)
+
+    # -- subtitle languages ---------------------------------------------------
+    def _configured_subs(self) -> list[str]:
+        """Languages the user picked in Settings (fallback: en, tr)."""
+        if self._config is not None:
+            try:
+                value = self._config.get("subtitle_langs")
+            except Exception:
+                value = None
+            if isinstance(value, list) and value:
+                return [str(x) for x in value]
+        return ["en", "tr"]
+
+    def _refresh_subs(self) -> None:
+        """Rebuild subtitle chips from settings + this video's availability."""
+        media = self._state.media
+        available: set[str] = set()
+        if media is not None:
+            available = set(media.subtitle_langs) | set(media.auto_caption_langs)
+        self.sub_chips.set_langs(self._configured_subs(), available)
+        self._sub_note.setVisible(self.sub_chips.has_unavailable())
+
+    def _on_subs_changed(self, langs: list[str]) -> None:
+        self._state.selected_subs = list(langs)
 
     def _on_chip_selected(self, chip_id: str) -> None:
         self._state.select_quality(chip_id)

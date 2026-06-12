@@ -163,6 +163,15 @@ class TestAudioMode:
         idx = args.index("--audio-format")
         assert args[idx + 1] == "mp3"
 
+    @pytest.mark.parametrize("native", ["", "best", "bestaudio"])
+    def test_best_audio_keeps_native_codec(self, native: str) -> None:
+        """'Best audio' extracts the source codec without a lossy re-encode."""
+        opts = _make_opts(mode=DownloadMode.AUDIO, audio_format=native)
+        args = _args(opts)
+        assert "-x" in args
+        assert "--audio-format" not in args
+        assert "--audio-quality" not in args
+
     def test_audio_quality_zero(self) -> None:
         opts = _make_opts(mode=DownloadMode.AUDIO)
         args = _args(opts)

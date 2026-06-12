@@ -26,4 +26,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the real yt-dlp/ffmpeg version checks. Concurrency-limited queue in the main window
   (default max 2, others wait and auto-start). PyInstaller spec (`ytdlpgui.spec`,
   single-file GUI; binaries stay external).
-- 134 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).
+- Subtitle language selection: Settings offers common languages (pick up to 2); the media
+  card shows single-select chips built from your configured languages and greys out the ones
+  the video doesn't provide. `MediaInfo` now carries the video's available subtitle/auto-caption
+  languages.
+- Per-folder **Save** buttons for the Videos/Music output folders (changes persist on click —
+  or Enter — with a brief purple "Saved" confirmation; unsaved edits are discarded on reopen).
+- New widgets: `FlowLayout` (wrapping pill layout) and `SubtitleChips`.
+- 152 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).
+
+### Changed
+- Video downloads now prefer AAC (m4a) audio so the merged mp4 plays in all players (avoids the
+  silent Opus-in-mp4 case); **Best audio** keeps the source codec instead of always re-encoding
+  to Opus.
+- Quality presets 1080p/720p/480p now actually apply (the chip ids matched the preset table).
+- Settings panel: more vertical spacing; Videos/Music inputs aligned with Base directory; subtitle
+  languages are a multi-select (capped at 2) instead of a free-text field.
+- The media-card destination label reflects the configured output folder name.
+- A fixed Fusion dark theme/palette is applied app-wide so the UI no longer follows the OS
+  light/dark setting (native window chrome and disabled controls stay dark).
+
+### Fixed
+- Cancelling (or a failed job) now deletes that job's partial files (`.part`, `.ytdl`, fragments)
+  from the output folder, scoped to the job so a concurrent download is never touched.
+- Queue panel scrolls when the list is long instead of squashing rows on top of each other.
+- Format table no longer shows the native Windows accent selection bar or per-cell focus
+  rectangle — only the themed purple row highlight (Fusion style + no-focus delegate).

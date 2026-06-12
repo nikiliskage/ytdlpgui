@@ -12,8 +12,8 @@ import itertools
 from functools import partial
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, Qt, QUrl
-from PySide6.QtGui import QDesktopServices, QKeyEvent, QResizeEvent
+from PySide6.QtCore import QPoint, QRectF, Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QKeyEvent, QPainterPath, QRegion, QResizeEvent
 from PySide6.QtWidgets import (
     QScrollArea,
     QVBoxLayout,
@@ -84,7 +84,7 @@ class MainWindow(QWidget):
 
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.resize(1100, 720)
+        self.resize(1100, 780)
         self.setObjectName("AppWindow")
 
         self._build()
@@ -131,6 +131,7 @@ class MainWindow(QWidget):
         self._content_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 
         self.omni = OmniBar(self._reduced_motion)
+        self.omni.setMinimumWidth(660)
         self.omni.setMaximumWidth(900)
         self.omni.fetch_requested.connect(self._on_fetch)
         self._content_layout.addWidget(self.omni, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -147,7 +148,7 @@ class MainWindow(QWidget):
         self._content_layout.addSpacing(22)
         self._content_layout.addWidget(self.skeleton, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        self.media_card = MediaCard(self.state, self._reduced_motion)
+        self.media_card = MediaCard(self.state, self._reduced_motion, config=self._config)
         self.media_card.setMaximumWidth(900)
         self.media_card.setVisible(False)
         self.media_card.add_to_queue.connect(self._on_add_to_queue)
@@ -335,10 +336,24 @@ class MainWindow(QWidget):
                 opts = self._bare_options(fmt)
         else:
             opts = self._bare_options(fmt)
-        # In Audio mode, the media-card chip (opus/mp3/m4a) overrides the
-        # configured default audio format.
-        if self.state.mode == c.DownloadMode.AUDIO and self.state.quality in ("opus", "mp3", "m4a"):
-            opts.audio_format = self.state.quality
+        # In Audio mode, the media-card chip drives the audio format:
+        #  - opus/mp3/m4a → convert to that format,
+        #  - "Best audio" → keep the source codec (no lossy re-encode), so a
+        #    download is never silently forced to opus.
+        if self.state.mode == c.DownloadMode.AUDIO:
+            if self.state.quality in ("opus", "mp3", "m4a"):
+                opts.audio_format = self.state.quality
+            elif self.state.quality == "bestaudio":
+                opts.audio_format = "best"
+        # In Subtitle mode, the on-screen chip selection (max 2) drives which
+        # languages download; enable auto-subs if a pick is auto-only.
+        elif self.state.mode == c.DownloadMode.SUBTITLE and self.state.selected_subs:
+            opts.subtitle_langs = list(self.state.selected_subs)
+            media = self.state.media
+            if media is not None:
+                manual = set(media.subtitle_langs)
+                if any(lang not in manual for lang in opts.subtitle_langs):
+                    opts.write_auto_subs = True
         return opts
 
     def _bare_options(self, fmt: str | None) -> c.DownloadOptions:
@@ -384,6 +399,9 @@ class MainWindow(QWidget):
         if is_open:
             self.scrim.raise_()
             self.settings_panel.raise_()
+        else:
+            # Folder names may have changed in settings; refresh the card label.
+            self.media_card.refresh_dest()
         self._layout_overlays()
 
     def _toggle_queue(self) -> None:
@@ -412,7 +430,15 @@ class MainWindow(QWidget):
     # -- overlay geometry -----------------------------------------------------
     def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
         super().resizeEvent(event)
+        self._apply_round_mask()
         self._layout_overlays()
+
+    def _apply_round_mask(self) -> None:
+        """Clip the whole window to a 12px rounded rect so no child widget
+        (dock, scrim, settings overlay…) can show a square corner."""
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(self.rect()), 12, 12)
+        self.setMask(QRegion(path.toFillPolygon().toPolygon()))
 
     def _layout_overlays(self) -> None:
         if not hasattr(self, "_root"):
@@ -423,6 +449,6 @@ class MainWindow(QWidget):
         # Queue panel is a bottom sheet anchored to the dock top, growing upward;
         # height fits its content (capped at 380, never taller than the space above).
         dock_top = h - 86
-        content_h = self.queue_panel.sizeHint().height()
+        content_h = self.queue_panel.content_height()
         panel_h = max(120, min(380, content_h, dock_top))
         self.queue_panel.setGeometry(0, dock_top - panel_h, w, panel_h)

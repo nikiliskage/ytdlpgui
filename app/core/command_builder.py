@@ -41,12 +41,23 @@ _PROGRESS_TEMPLATE = (
     "|%(progress.eta)s"
 )
 
+def _video_selector(cap: str = "") -> str:
+    """Format selector preferring AAC (m4a) audio so the merged mp4 stays playable.
+
+    YouTube's plain ``bestaudio`` is usually Opus, and Opus inside an mp4
+    container plays silently in many players. We try an m4a (AAC) audio stream
+    first, then fall back to whatever audio is best, then to a single combined
+    format. ``cap`` is an optional height filter like ``[height<=1080]``.
+    """
+    return f"bestvideo{cap}+bestaudio[ext=m4a]/bestvideo{cap}+bestaudio/best{cap}"
+
+
 # Logical preset → yt-dlp format selector
 _PRESET_FORMAT: dict[str, str] = {
-    PRESET_BEST: "bestvideo+bestaudio/best",
-    PRESET_1080P: "bestvideo[height<=1080]+bestaudio/best",
-    PRESET_720P: "bestvideo[height<=720]+bestaudio/best",
-    PRESET_480P: "bestvideo[height<=480]+bestaudio/best",
+    PRESET_BEST: _video_selector(),
+    PRESET_1080P: _video_selector("[height<=1080]"),
+    PRESET_720P: _video_selector("[height<=720]"),
+    PRESET_480P: _video_selector("[height<=480]"),
 }
 
 
@@ -109,10 +120,16 @@ class YtDlpCommandBuilder:
         return self
 
     def format_audio(self, audio_format: str) -> YtDlpCommandBuilder:
-        """Add audio extraction args."""
+        """Add audio extraction args.
+
+        An empty/``best``/``bestaudio`` format keeps the source codec: yt-dlp
+        extracts the original audio stream with no lossy re-encode (fast,
+        lossless). Any concrete format (opus/mp3/m4a) converts to it.
+        """
         self._add("-x")
-        self._add("--audio-format", audio_format)
-        self._add("--audio-quality", "0")
+        if audio_format and audio_format not in ("best", "bestaudio"):
+            self._add("--audio-format", audio_format)
+            self._add("--audio-quality", "0")
         return self
 
     def subtitles(

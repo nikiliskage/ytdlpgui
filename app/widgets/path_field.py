@@ -40,6 +40,9 @@ class PathField(QWidget):
         row.addWidget(self.input, 1)
         self.browse = QPushButton("Browse…")
         self.browse.setProperty("class", "sp-browse")
+        # Fixed width shared with the settings "Save" buttons so every input box
+        # (Base directory, Videos/Music folder, binaries) lines up on the right.
+        self.browse.setFixedWidth(82)
         self.browse.clicked.connect(self._on_browse)
         row.addWidget(self.browse)
         layout.addLayout(row)

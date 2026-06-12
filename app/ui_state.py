@@ -21,9 +21,9 @@ URL_RE = r"^https?://[^\s.]+\.[^\s]{2,}"
 CHIPS_BY_MODE: dict[c.DownloadMode, list[tuple[str, str, str]]] = {
     c.DownloadMode.VIDEO: [
         ("best", "Best", "auto"),
-        ("1080", "1080p", "mp4"),
-        ("720", "720p", "mp4"),
-        ("480", "480p", "mp4"),
+        ("1080p", "1080p", "mp4"),
+        ("720p", "720p", "mp4"),
+        ("480p", "480p", "mp4"),
     ],
     c.DownloadMode.AUDIO: [
         ("bestaudio", "Best audio", "auto"),
@@ -44,6 +44,28 @@ def first_chip_id(mode: c.DownloadMode) -> str:
     return CHIPS_BY_MODE[mode][0][0]
 
 
+# Subtitle languages offered as selectable chips (code, display label). Shared by
+# the settings panel (which languages to offer) and the media-card subtitle chips.
+SUBTITLE_LANGS: list[tuple[str, str]] = [
+    ("en", "English"),
+    ("tr", "Türkçe"),
+    ("de", "Deutsch"),
+    ("es", "Español"),
+    ("fr", "Français"),
+    ("it", "Italiano"),
+    ("ru", "Русский"),
+    ("ar", "العربية"),
+    ("ja", "日本語"),
+]
+
+_LANG_LABELS: dict[str, str] = dict(SUBTITLE_LANGS)
+
+
+def lang_label(code: str) -> str:
+    """Human label for a language code (falls back to the code itself)."""
+    return _LANG_LABELS.get(code, code)
+
+
 @dataclass
 class UiState:
     """Single source of truth for the main window's interactive state."""
@@ -59,6 +81,7 @@ class UiState:
     mode: c.DownloadMode = c.DownloadMode.VIDEO
     quality: str | None = "best"
     selected_format: str | None = None  # mutually exclusive with quality
+    selected_subs: list[str] = field(default_factory=list)  # subtitle mode (max 2)
     advanced_open: bool = False
 
     queue_open: bool = False

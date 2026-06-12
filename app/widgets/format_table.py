@@ -7,11 +7,22 @@ Selecting a row clears chip selection (handled by the parent) and vice versa.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPropertyAnimation, Qt, Signal
+from PySide6.QtCore import (
+    QModelIndex,
+    QPersistentModelIndex,
+    QPropertyAnimation,
+    Qt,
+    Signal,
+)
+from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
     QPushButton,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleFactory,
+    QStyleOptionViewItem,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -22,6 +33,19 @@ from app import icons
 from app.core import contracts as c
 
 _HEADERS = ["ID", "Ext", "Resolution", "FPS", "Codec", "Size"]
+
+
+class _NoFocusDelegate(QStyledItemDelegate):
+    """Strip the per-cell focus state so no focus rectangle is painted."""
+
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionViewItem,
+        index: QModelIndex | QPersistentModelIndex,
+    ) -> None:
+        option.state &= ~QStyle.StateFlag.State_HasFocus
+        super().paint(painter, option, index)
 
 
 def _fmt_size(filesize: int | None) -> str:
@@ -73,8 +97,17 @@ class FormatTable(QWidget):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setShowGrid(False)
+        # The native Windows 11 style paints a pink/accent selection bar at the
+        # view level (ignores QSS/delegate); Fusion respects our QSS selection.
+        fusion = QStyleFactory.create("Fusion")
+        if fusion is not None:
+            self._fusion_style = fusion  # keep a reference alive (Qt doesn't own it)
+            self.table.setStyle(fusion)
+        # No per-cell focus rectangle/editor box — only the purple row selection.
+        self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.table.setItemDelegate(_NoFocusDelegate(self.table))
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table.setFixedHeight(220)
+        self.table.setFixedHeight(200)
         self.table.itemSelectionChanged.connect(self._on_selection)
         cont_layout.addWidget(self.table)
         layout.addWidget(self._container)
@@ -98,6 +131,7 @@ class FormatTable(QWidget):
             ]
             for col, val in enumerate(values):
                 item = QTableWidgetItem(val)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 if col == 0:
                     item.setData(Qt.ItemDataRole.UserRole, f.format_id)
                 self.table.setItem(row, col, item)
@@ -116,7 +150,7 @@ class FormatTable(QWidget):
         self.toggle_btn.setIcon(icons.icon("chev_down" if is_open else "chev_right", "#9a9aa6"))
         self._anim.stop()
         self._anim.setStartValue(self._container.maximumHeight())
-        self._anim.setEndValue(240 if is_open else 0)
+        self._anim.setEndValue(220 if is_open else 0)
         self._anim.start()
         self.toggled_open.emit(is_open)
 

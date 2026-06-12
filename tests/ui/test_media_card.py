@@ -20,8 +20,8 @@ def _card(qtbot):  # type: ignore[no-untyped-def]
 
 def test_mode_switch_resets_quality(qtbot) -> None:  # type: ignore[no-untyped-def]
     state, card = _card(qtbot)
-    card.chips.select("720")
-    assert state.quality == "720"
+    card.chips.select("720p")
+    assert state.quality == "720p"
     card.segmented.set_mode(c.DownloadMode.AUDIO)
     assert state.mode == c.DownloadMode.AUDIO
     assert state.quality == "bestaudio"  # first audio chip
@@ -35,8 +35,8 @@ def test_format_selection_clears_chips_and_vice_versa(qtbot) -> None:  # type: i
     assert state.quality is None
     assert card.chips.selected() is None
     # picking a chip again clears the format
-    card.chips.select("1080")
-    assert state.quality == "1080"
+    card.chips.select("1080p")
+    assert state.quality == "1080p"
     assert state.selected_format is None
 
 
@@ -46,3 +46,47 @@ def test_subtitle_mode_hides_advanced(qtbot) -> None:  # type: ignore[no-untyped
     assert card.formats.isHidden()
     card.segmented.set_mode(c.DownloadMode.VIDEO)
     assert not card.formats.isHidden()
+
+
+def test_subtitle_chips_grey_unavailable_and_preselect(qtbot, mock_config) -> None:  # type: ignore[no-untyped-def]
+    mock_config.set("subtitle_langs", ["en", "tr", "de"])
+    state = UiState()
+    card = MediaCard(state, reduced_motion=True, config=mock_config)
+    qtbot.addWidget(card)
+    # Video offers tr (manual) + de (auto); en is missing.
+    card.set_media(
+        c.MediaInfo(title="X", subtitle_langs=["tr"], auto_caption_langs=["de"]), []
+    )
+    card.segmented.set_mode(c.DownloadMode.SUBTITLE)
+    chips = card.sub_chips
+    assert not chips._chips["en"].isEnabled()  # unavailable → disabled  # noqa: SLF001
+    assert chips._chips["tr"].isEnabled()  # noqa: SLF001
+    assert chips._chips["de"].isEnabled()  # noqa: SLF001
+    assert state.selected_subs == ["tr"]  # first AVAILABLE preselected (single)
+    assert card._sub_note.isVisibleTo(card)  # en greyed → note shown  # noqa: SLF001
+
+
+def test_subtitle_chips_single_select(qtbot, mock_config) -> None:  # type: ignore[no-untyped-def]
+    mock_config.set("subtitle_langs", ["en", "tr", "de"])
+    state = UiState()
+    card = MediaCard(state, reduced_motion=True, config=mock_config)
+    qtbot.addWidget(card)
+    card.set_media(c.MediaInfo(title="X", subtitle_langs=["en", "tr", "de"]), [])
+    card.segmented.set_mode(c.DownloadMode.SUBTITLE)
+    assert state.selected_subs == ["en"]  # first available preselected
+    card.sub_chips._chips["de"].click()  # switches selection  # noqa: SLF001
+    assert state.selected_subs == ["de"]  # single-select: only one active
+    card.sub_chips._chips["de"].click()  # click active → clears  # noqa: SLF001
+    assert state.selected_subs == []
+
+
+def test_dest_label_reflects_configured_folder(qtbot, mock_config) -> None:  # type: ignore[no-untyped-def]
+    mock_config.set("video_subfolder", "videosad")
+    mock_config.set("audio_subfolder", "tunes")
+    state = UiState()
+    card = MediaCard(state, reduced_motion=True, config=mock_config)
+    qtbot.addWidget(card)
+    card.refresh_dest()
+    assert card._dest_label.text() == "videosad\\"  # noqa: SLF001
+    card.segmented.set_mode(c.DownloadMode.AUDIO)
+    assert card._dest_label.text() == "tunes\\"  # noqa: SLF001

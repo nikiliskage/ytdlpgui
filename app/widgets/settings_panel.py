@@ -7,7 +7,9 @@ Sections: Binaries / Output / Audio / Subtitles & embedding / Performance
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from collections.abc import Callable
+
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -21,6 +23,8 @@ from PySide6.QtWidgets import (
 
 from app import __version__, icons
 from app.core import contracts as c
+from app.ui_state import SUBTITLE_LANGS
+from app.widgets.flow_layout import FlowLayout
 from app.widgets.path_field import PathField
 from app.widgets.toggle import Toggle
 
@@ -67,6 +71,69 @@ class _Pills(QWidget):
             self.selected.emit(value)
 
 
+class _MultiPills(QWidget):
+    """Multi-select pill grid (capped) bound to a list config value.
+
+    Toggling a pill flips it in/out of the selection and emits the full ordered
+    list; selection is discrete so it persists immediately (no Save button). At
+    most ``max_selected`` pills can be active at once.
+    """
+
+    changed = Signal(list)  # emits list[str] of selected codes, in option order
+
+    def __init__(
+        self,
+        options: list[tuple[str, str]],
+        selected: list[str],
+        max_selected: int = 2,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        # Report height-for-width so the wrapping flow layout sizes correctly
+        # inside the vertical settings body.
+        policy = self.sizePolicy()
+        policy.setHeightForWidth(True)
+        self.setSizePolicy(policy)
+        flow = FlowLayout(self, spacing=6)
+        self._order = [code for code, _ in options]
+        self._max = max_selected
+        # Keep at most _max, preserving option order.
+        kept = [code for code in self._order if code in selected][:max_selected]
+        self._selected: set[str] = set(kept)
+        self._pills: dict[str, QPushButton] = {}
+        for code, label in options:
+            pill = QPushButton(label)
+            pill.setProperty("class", "pill")
+            pill.setCheckable(True)
+            pill.setCursor(Qt.CursorShape.PointingHandCursor)
+            pill.clicked.connect(lambda _=False, code=code: self._toggle(code))
+            flow.addWidget(pill)
+            self._pills[code] = pill
+        self._refresh()
+
+    def selected(self) -> list[str]:
+        """Selected codes in the original option order."""
+        return [code for code in self._order if code in self._selected]
+
+    def _toggle(self, code: str) -> None:
+        if code in self._selected:
+            self._selected.discard(code)
+        elif len(self._selected) < self._max:
+            self._selected.add(code)
+        # else: at the cap — leave selection unchanged; _refresh unchecks the pill.
+        self._refresh()
+        self.changed.emit(self.selected())
+
+    def _refresh(self) -> None:
+        for code, pill in self._pills.items():
+            on = code in self._selected
+            pill.setChecked(on)
+            pill.setProperty("selected", "true" if on else "false")
+            style = pill.style()
+            style.unpolish(pill)
+            style.polish(pill)
+
+
 class SettingsPanel(QWidget):
     """Slide-over settings panel; persists every change to ``config``."""
 
@@ -86,6 +153,8 @@ class SettingsPanel(QWidget):
         self._config = config
         self._reduced_motion = reduced_motion
         self._open = False
+        # Per-field "discard unsaved edits" resetters, run when the panel opens.
+        self._reset_fns: list[Callable[[], None]] = []
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -111,12 +180,15 @@ class SettingsPanel(QWidget):
         root.addWidget(head)
 
         scroll = QScrollArea()
+        scroll.setObjectName("SpScroll")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         body = QWidget()
+        body.setObjectName("SpBody")
         self._body = QVBoxLayout(body)
-        self._body.setContentsMargins(20, 6, 20, 24)
-        self._body.setSpacing(0)
+        self._body.setContentsMargins(20, 10, 20, 28)
+        self._body.setSpacing(7)
         scroll.setWidget(body)
         root.addWidget(scroll, 1)
 
@@ -126,7 +198,7 @@ class SettingsPanel(QWidget):
     def _section_label(self, text: str) -> None:
         label = QLabel(text)
         label.setProperty("class", "sp-section-label")
-        label.setContentsMargins(0, 18, 0, 8)
+        label.setContentsMargins(0, 16, 0, 6)
         self._body.addWidget(label)
 
     def _field_label(self, text: str) -> None:
@@ -165,10 +237,10 @@ class SettingsPanel(QWidget):
         self.base_dir = PathField(str(self._get("base_dir")), show_status=False, pick_dir=True)
         self.base_dir.path_changed.connect(lambda v: self._set("base_dir", v))
         self._body.addWidget(self.base_dir)
-        self.video_dir = self._labeled_input(
+        self.video_dir = self._saved_input(
             "Videos folder", str(self._get("video_subfolder", "videos")), "video_subfolder"
         )
-        self.music_dir = self._labeled_input(
+        self.music_dir = self._saved_input(
             "Music folder", str(self._get("audio_subfolder", "musics")), "audio_subfolder"
         )
 
@@ -180,12 +252,12 @@ class SettingsPanel(QWidget):
 
         # Subtitles & embedding
         self._section_label("SUBTITLES & EMBEDDING")
+        self._field_label("Subtitle languages (up to 2)")
         langs = self._get("subtitle_langs", ["en", "tr"])
-        langs_str = ",".join(langs) if isinstance(langs, list) else str(langs)
-        self.sub_langs = self._labeled_input("Subtitle languages", langs_str, None, mono=True)
-        self.sub_langs.textChanged.connect(
-            lambda v: self._set("subtitle_langs", [s.strip() for s in v.split(",") if s.strip()])
-        )
+        selected = [str(x) for x in langs] if isinstance(langs, list) else []
+        self.sub_langs = _MultiPills(SUBTITLE_LANGS, selected)
+        self.sub_langs.changed.connect(lambda v: self._set("subtitle_langs", v))
+        self._body.addWidget(self.sub_langs)
         self.embed_subs = self._toggle_row("Embed subtitles", "embed_subs")
         self.embed_thumb = self._toggle_row("Embed thumbnail", "embed_thumbnail")
         self.embed_meta = self._toggle_row("Embed metadata", "embed_metadata")
@@ -244,18 +316,63 @@ class SettingsPanel(QWidget):
         self._body.addWidget(version)
         self._body.addStretch(1)
 
-    def _labeled_input(
-        self, label: str, value: str, key: str | None, mono: bool = False
-    ) -> QLineEdit:
+    def _saved_input(self, label: str, value: str, key: str) -> QLineEdit:
+        """Input + explicit Save button (same row layout/width as Base directory).
+
+        The value is *not* written on every keystroke; it only persists when Save
+        is clicked (or Enter pressed). So if the user types and walks away without
+        saving, the previously stored location stays in effect.
+        """
         lbl = QLabel(label)
         lbl.setProperty("class", "sp-label")
         lbl.setContentsMargins(0, 4, 0, 4)
         self._body.addWidget(lbl)
+
+        row = QHBoxLayout()
+        # Zero margins so the input's left edge lines up with the Base directory
+        # box; without this the layout inherits the style's default insets and
+        # the box drifts slightly to the right.
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
         field = QLineEdit(value)
-        field.setProperty("class", "sp-input sp-input-mono" if mono else "sp-input")
-        if key is not None:
-            field.textChanged.connect(lambda v, k=key: self._set(k, v))
-        self._body.addWidget(field)
+        field.setProperty("class", "sp-input")
+        row.addWidget(field, 1)
+        save = QPushButton("Save")
+        save.setProperty("class", "sp-browse")
+        save.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Match the Browse button width so the folder inputs align with Base
+        # directory; fixed width also stops the box jumping on the "Saved" flash.
+        save.setFixedWidth(82)
+
+        def _set_saved(on: bool) -> None:
+            save.setText("Saved" if on else "Save")
+            save.setProperty("saved", "true" if on else "false")
+            style = save.style()
+            style.unpolish(save)
+            style.polish(save)
+
+        def _commit() -> None:
+            text = field.text().strip()
+            if not text:
+                return  # never persist an empty folder name; keep the old one
+            self._set(key, text)
+            _set_saved(True)  # flash purple
+            QTimer.singleShot(1200, lambda: _set_saved(False))  # back to gray
+
+        save.clicked.connect(_commit)
+        field.returnPressed.connect(_commit)  # Enter also saves
+        row.addWidget(save)
+        wrapper = QWidget()
+        wrapper.setLayout(row)
+        self._body.addWidget(wrapper)
+
+        # Discard unsaved edits when the panel re-opens: snap back to whatever
+        # is currently stored in config (the last saved value).
+        def _reset() -> None:
+            field.setText(str(self._get(key, value)))
+            _set_saved(False)
+
+        self._reset_fns.append(_reset)
         return field
 
     def _toggle_row(self, label: str, key: str, on_change: object | None = None) -> Toggle:
@@ -307,6 +424,10 @@ class SettingsPanel(QWidget):
         return self._open
 
     def set_open(self, is_open: bool) -> None:
+        if is_open:
+            # Re-opening shows the saved state; any edit left unsaved is dropped.
+            for reset in self._reset_fns:
+                reset()
         self._open = is_open
         self.setVisible(is_open)
 

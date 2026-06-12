@@ -198,6 +198,8 @@ class MediaInfo:
     thumbnail_url: str = ""
     webpage_url: str = ""
     needs_cookies: bool = False  # yaş sınırı/giriş gerekiyor mu (sezgisel)
+    subtitle_langs: list[str] = field(default_factory=list)  # manuel altyazı dilleri
+    auto_caption_langs: list[str] = field(default_factory=list)  # otomatik altyazı dilleri
 
 
 @dataclass

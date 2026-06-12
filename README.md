@@ -38,9 +38,13 @@ pyinstaller ytdlpgui.spec
 > The unsigned `.exe` may trigger a Windows SmartScreen prompt ("More info → Run anyway").
 
 ## Features
-- Real-format selector (quality chips + advanced format table)
-- Download queue (up to 2 concurrent), cancel / retry, resume (`--continue`)
-- Audio extraction (opus / mp3 / m4a), subtitles, thumbnail/metadata embedding
+- Real-format selector (quality chips + advanced format table); video downloads prefer AAC audio
+  so the resulting mp4 plays everywhere
+- Download queue (up to 2 concurrent), cancel / retry, resume (`--continue`); cancelling cleans up
+  the partial files it left behind
+- Audio extraction — **Best audio** keeps the source codec, or convert to opus / mp3 / m4a
+- Subtitles: pick languages (Settings, up to 2); the picker greys out languages a video doesn't offer
+- Thumbnail / metadata embedding
 - Optional cookie module (`--cookies-from-browser` or `cookies.txt`)
 - One-click "Update yt-dlp" (`yt-dlp -U`)
 
