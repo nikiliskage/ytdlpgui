@@ -35,7 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-folder **Save** buttons for the Videos/Music output folders (changes persist on click —
   or Enter — with a brief purple "Saved" confirmation; unsaved edits are discarded on reopen).
 - New widget: `SubtitleChips` (single-select subtitle-language chips).
-- Settings "About" section (app name + version, short description, link to the yt-dlp project).
+- Settings "About" section: app name + version, short description, author credit (nikiliskage),
+  and a link to the yt-dlp project with a "not affiliated" note.
 - 152 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).
 
 ### Changed

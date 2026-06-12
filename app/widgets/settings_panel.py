@@ -324,12 +324,20 @@ class SettingsPanel(QWidget):
         about_desc.setProperty("class", "sp-sublabel")
         about_desc.setWordWrap(True)
         self._body.addWidget(about_desc)
+        _link = "color:#a855f7; text-decoration:none;"
+        about_author = QLabel(
+            f'Made by <a style="{_link}" href="https://github.com/nikiliskage">'
+            "nikiliskage</a> · MIT License"
+        )
+        about_author.setProperty("class", "sp-sublabel")
+        about_author.setOpenExternalLinks(True)
+        self._body.addWidget(about_author)
         about_links = QLabel(
-            "MIT License · powered by "
-            '<a style="color:#a855f7; text-decoration:none;" '
-            'href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a>'
+            f'Powered by <a style="{_link}" href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a>'
+            " · not affiliated with the yt-dlp project."
         )
         about_links.setProperty("class", "sp-sublabel")
+        about_links.setWordWrap(True)
         about_links.setOpenExternalLinks(True)
         self._body.addWidget(about_links)
         self._body.addStretch(1)
