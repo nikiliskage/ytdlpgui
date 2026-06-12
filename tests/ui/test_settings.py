@@ -8,9 +8,33 @@ from app.widgets.settings_panel import SettingsPanel
 def test_setting_change_writes_to_config(qtbot, mock_config) -> None:  # type: ignore[no-untyped-def]
     panel = SettingsPanel(mock_config, reduced_motion=True)
     qtbot.addWidget(panel)
-    panel.audio_pills.select("mp3")
-    assert mock_config.get("audio_format") == "mp3"
+    panel.embed_thumb.set_checked(True)
+    assert mock_config.get("embed_thumbnail") is True
     assert mock_config.saved > 0
+
+
+def test_update_message_up_to_date() -> None:
+    msg, ok = SettingsPanel._update_message(  # noqa: SLF001
+        0, "Latest version: 2026.06.09\nyt-dlp is up to date (2026.06.09)"
+    )
+    assert ok is True
+    assert "up to date" in msg.lower()
+
+
+def test_update_message_updated() -> None:
+    msg, ok = SettingsPanel._update_message(  # noqa: SLF001
+        0, "Updating to stable@2026.06.10\nUpdated yt-dlp to 2026.06.10"
+    )
+    assert ok is True
+    assert "2026.06.10" in msg
+
+
+def test_update_message_failure() -> None:
+    msg, ok = SettingsPanel._update_message(  # noqa: SLF001
+        1, "ERROR: You installed yt-dlp with pip or using the wheel"
+    )
+    assert ok is False
+    assert msg
 
 
 def test_slider_writes_max_concurrent(qtbot, mock_config) -> None:  # type: ignore[no-untyped-def]

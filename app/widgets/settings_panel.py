@@ -1,15 +1,15 @@
 """Right-hand settings slide-over with all sections.
 
 Every control writes through to the injected ``config`` (IConfig-like) on change.
-Sections: Binaries / Output / Audio / Subtitles & embedding / Performance
-(concurrent fragments + max concurrent downloads) / Cookies / Maintenance.
+Sections: Binaries / Output / Subtitles & embedding / Performance (concurrent
+fragments + max concurrent downloads) / Cookies / Maintenance / About.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QProcess, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
@@ -155,6 +155,9 @@ class SettingsPanel(QWidget):
         self._open = False
         # Per-field "discard unsaved edits" resetters, run when the panel opens.
         self._reset_fns: list[Callable[[], None]] = []
+        # yt-dlp self-update process + captured output (None when idle).
+        self._update_proc: QProcess | None = None
+        self._update_out: list[str] = []
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -244,12 +247,6 @@ class SettingsPanel(QWidget):
             "Music folder", str(self._get("audio_subfolder", "musics")), "audio_subfolder"
         )
 
-        # Audio
-        self._section_label("AUDIO")
-        self.audio_pills = _Pills(["opus", "mp3", "m4a"], str(self._get("audio_format", "opus")))
-        self.audio_pills.selected.connect(lambda v: self._set("audio_format", v))
-        self._body.addWidget(self.audio_pills)
-
         # Subtitles & embedding
         self._section_label("SUBTITLES & EMBEDDING")
         self._field_label("Subtitle languages (up to 2)")
@@ -309,11 +306,32 @@ class SettingsPanel(QWidget):
         self.update_btn = QPushButton("Update yt-dlp")
         self.update_btn.setObjectName("SpUpdate")
         self.update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.update_btn.clicked.connect(self._on_update)
         self._body.addWidget(self.update_btn)
-        version = QLabel(f"GUI {__version__}")
-        version.setObjectName("SpVersion")
-        version.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._body.addWidget(version)
+        self._update_status = QLabel("")
+        self._update_status.setProperty("class", "sp-sublabel")
+        self._update_status.setWordWrap(True)
+        self._update_status.setContentsMargins(0, 6, 0, 0)
+        self._update_status.setVisible(False)
+        self._body.addWidget(self._update_status)
+
+        # About
+        self._section_label("ABOUT")
+        about_name = QLabel(f"yt-dlp GUI · v{__version__}")
+        about_name.setProperty("class", "sp-label")
+        self._body.addWidget(about_name)
+        about_desc = QLabel("A desktop GUI for yt-dlp — paste a link, pick a format, download.")
+        about_desc.setProperty("class", "sp-sublabel")
+        about_desc.setWordWrap(True)
+        self._body.addWidget(about_desc)
+        about_links = QLabel(
+            "MIT License · powered by "
+            '<a style="color:#a855f7; text-decoration:none;" '
+            'href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a>'
+        )
+        about_links.setProperty("class", "sp-sublabel")
+        about_links.setOpenExternalLinks(True)
+        self._body.addWidget(about_links)
         self._body.addStretch(1)
 
     def _saved_input(self, label: str, value: str, key: str) -> QLineEdit:
@@ -413,6 +431,84 @@ class SettingsPanel(QWidget):
         wrapper.setLayout(row)
         self._body.addWidget(wrapper)
         return slider
+
+    # -- yt-dlp self-update ---------------------------------------------------
+    def _resolve_ytdlp_path(self) -> str:
+        """Locate yt-dlp: configured path → paths.resolve_ytdlp() → PATH."""
+        configured = str(self._get("ytdlp_path", "") or "")
+        if configured:
+            return configured
+        try:
+            from app.core.paths import resolve_ytdlp
+
+            result = resolve_ytdlp()
+            if result.found and result.path:
+                return str(result.path)
+        except Exception:
+            pass
+        import shutil
+
+        return shutil.which("yt-dlp") or ""
+
+    def _on_update(self) -> None:
+        """Run ``yt-dlp -U`` in the background and report the result inline."""
+        if self._update_proc is not None:
+            return  # already running
+        ytdlp = self._resolve_ytdlp_path()
+        if not ytdlp:
+            self._set_update_status("yt-dlp not found — set its path under Binaries.", ok=False)
+            return
+        self.update_btn.setEnabled(False)
+        self.update_btn.setText("Updating…")
+        self._set_update_status("Checking for updates…", ok=None)
+
+        proc = QProcess(self)
+        self._update_proc = proc
+        self._update_out = []
+        proc.readyReadStandardOutput.connect(
+            lambda: self._update_out.append(
+                bytes(proc.readAllStandardOutput().data()).decode("utf-8", "replace")
+            )
+        )
+        proc.readyReadStandardError.connect(
+            lambda: self._update_out.append(
+                bytes(proc.readAllStandardError().data()).decode("utf-8", "replace")
+            )
+        )
+        proc.finished.connect(self._on_update_done)
+        proc.start(ytdlp, ["-U"])
+
+    def _on_update_done(self, exit_code: int, _status: object) -> None:
+        output = "".join(self._update_out)
+        self._update_proc = None
+        self.update_btn.setEnabled(True)
+        self.update_btn.setText("Update yt-dlp")
+        message, ok = self._update_message(exit_code, output)
+        self._set_update_status(message, ok=ok)
+
+    @staticmethod
+    def _update_message(exit_code: int, output: str) -> tuple[str, bool]:
+        """Classify ``yt-dlp -U`` output into a friendly (message, success) pair."""
+        last = next((ln.strip() for ln in reversed(output.splitlines()) if ln.strip()), "")
+        if exit_code == 0 and "up to date" in output.lower():
+            return "yt-dlp is already up to date.", True
+        if exit_code == 0:
+            return last or "yt-dlp updated.", True
+        return last or "Update failed.", False
+
+    def _set_update_status(self, message: str, ok: bool | None) -> None:
+        if ok is True:
+            cls = "sp-status-ok"
+        elif ok is False:
+            cls = "sp-status-bad"
+        else:
+            cls = "sp-sublabel"
+        self._update_status.setText(message)
+        self._update_status.setProperty("class", cls)
+        style = self._update_status.style()
+        style.unpolish(self._update_status)
+        style.polish(self._update_status)
+        self._update_status.setVisible(True)
 
     def _on_cookies(self, enabled: bool) -> None:
         self.cookie_source.setVisible(enabled)

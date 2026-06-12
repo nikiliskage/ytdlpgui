@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-folder **Save** buttons for the Videos/Music output folders (changes persist on click —
   or Enter — with a brief purple "Saved" confirmation; unsaved edits are discarded on reopen).
 - New widget: `SubtitleChips` (single-select subtitle-language chips).
+- Settings "About" section (app name + version, short description, link to the yt-dlp project).
 - 152 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).
 
 ### Changed
@@ -48,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The media card is a fixed width matching the omni bar, so switching
   Video/Audio/Subtitle modes (different chip counts) no longer shifts the
   centred content. The Audio "Best" chip is relabelled to match the Video one.
+- Removed the redundant Settings "Audio format" section — the media-card audio
+  chip already chooses the format, and the setting was always overridden by it.
 - A fixed Fusion dark theme/palette is applied app-wide so the UI no longer follows the OS
   light/dark setting (native window chrome and disabled controls stay dark).
 
@@ -63,3 +66,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   startup, so the slider did nothing until a restart).
 - Subtitle-only downloads no longer pass `--embed-thumbnail`/`--embed-metadata` (there is no media
   file to embed into).
+- The "Update yt-dlp" button now actually runs `yt-dlp -U` in the background and reports the result
+  inline (up to date / updated / failed) — previously it was wired to nothing.
