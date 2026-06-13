@@ -34,6 +34,11 @@ from app.widgets.title_bar import TitleBar
 
 _QSS_PATH = Path(__file__).parent / "resources" / "theme.qss"
 
+# Shared fixed width for the omni bar and media card. Fixed so switching
+# Video/Audio/Subtitle modes (different chip counts) never resizes/shifts the
+# centred content; wide enough that the 4-chip Video/Audio rows don't clip.
+_COLUMN_WIDTH = 740
+
 
 def _as_int(value: object, default: int) -> int:
     """Coerce a config value (object) to int, falling back to default."""
@@ -130,8 +135,7 @@ class MainWindow(QWidget):
         self._content_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 
         self.omni = OmniBar(self._reduced_motion)
-        self.omni.setMinimumWidth(660)
-        self.omni.setMaximumWidth(900)
+        self.omni.setFixedWidth(_COLUMN_WIDTH)
         self.omni.fetch_requested.connect(self._on_fetch)
         self._content_layout.addWidget(self.omni, 0, Qt.AlignmentFlag.AlignHCenter)
 
@@ -148,9 +152,7 @@ class MainWindow(QWidget):
         self._content_layout.addWidget(self.skeleton, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.media_card = MediaCard(self.state, self._reduced_motion, config=self._config)
-        # Fixed to the omni-bar width so the centred content never jumps when
-        # switching Video/Audio/Subtitle modes changes the number of chips.
-        self.media_card.setFixedWidth(660)
+        self.media_card.setFixedWidth(_COLUMN_WIDTH)
         self.media_card.setVisible(False)
         self.media_card.add_to_queue.connect(self._on_add_to_queue)
         self.media_card.enable_cookies.connect(self._on_enable_cookies)
