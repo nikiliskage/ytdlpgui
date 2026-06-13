@@ -9,6 +9,8 @@ yt-dlp self-update.
 >
 > 📖 **Documentation:** <https://nikiliskage.github.io/ytdlpgui/>
 
+![yt-dlp GUI — main window](docs/assets/screenshots/app.png)
+
 ## Why
 Using yt-dlp from the command line, two things are annoying:
 1. Guessing format strings → *"Requested format is not available"*.

@@ -96,6 +96,18 @@ Update yt-dlp itself (`yt-dlp -U`) from inside the app and see the result inline
 </div>
 </div>
 
+## Screenshots { .ytg-section-title }
+
+<div class="ytg-shots" markdown>
+
+![First launch — paste a link](assets/screenshots/empty.png)
+
+![Fetched media — pick a format and download](assets/screenshots/app.png)
+
+![Settings](assets/screenshots/settings.png)
+
+</div>
+
 ---
 
 !!! info "You provide the binaries"
