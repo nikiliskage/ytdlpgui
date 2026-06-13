@@ -173,3 +173,45 @@ def test_as_download_options_format_id_override(tmp_config: Config) -> None:
     """Caller-supplied format_id is forwarded unchanged."""
     opts = tmp_config.as_download_options("https://example.com/v", format_id="137")
     assert opts.format_id == "137"
+
+
+# ---------------------------------------------------------------------------
+# cookie_cli_args (shared by the metadata fetch)
+# ---------------------------------------------------------------------------
+
+
+def test_cookie_cli_args_disabled_is_empty(tmp_config: Config) -> None:
+    """No cookie flags when the cookie module is off (the default)."""
+    assert tmp_config.cookie_cli_args() == []
+
+
+def test_cookie_cli_args_browser(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Browser source → --cookies-from-browser <browser>."""
+    monkeypatch.setenv("YTDLPGUI_CONFIG_DIR", str(tmp_path))
+    cfg = Config()
+    cfg.set("cookies_enabled", True)
+    cfg.set("cookies_source", CookieSource.BROWSER.value)
+    cfg.set("browser_choice", "firefox")
+    assert cfg.cookie_cli_args() == ["--cookies-from-browser", "firefox"]
+
+
+def test_cookie_cli_args_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """File source with a path → --cookies <path>."""
+    monkeypatch.setenv("YTDLPGUI_CONFIG_DIR", str(tmp_path))
+    cfg = Config()
+    cfg.set("cookies_enabled", True)
+    cfg.set("cookies_source", CookieSource.FILE.value)
+    cfg.set("cookies_file_path", r"C:\cookies.txt")
+    assert cfg.cookie_cli_args() == ["--cookies", r"C:\cookies.txt"]
+
+
+def test_cookie_cli_args_file_without_path_is_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """File source but no path set → no flags (don't pass an empty --cookies)."""
+    monkeypatch.setenv("YTDLPGUI_CONFIG_DIR", str(tmp_path))
+    cfg = Config()
+    cfg.set("cookies_enabled", True)
+    cfg.set("cookies_source", CookieSource.FILE.value)
+    cfg.set("cookies_file_path", "")
+    assert cfg.cookie_cli_args() == []

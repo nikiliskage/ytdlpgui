@@ -51,6 +51,7 @@ def _args(opts: DownloadOptions, **kw: str) -> list[str]:
 def test_common_flags_present_video() -> None:
     opts = _make_opts()
     args = _args(opts)
+    assert "--no-playlist" in args  # never grab a whole playlist (e.g. ...&list=WL)
     assert "--windows-filenames" in args
     assert "--continue" in args
     assert "--newline" in args

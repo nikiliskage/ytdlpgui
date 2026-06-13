@@ -18,18 +18,24 @@ from app.core.contracts import (
     AppError,
     ErrorKind,
     FormatInfo,
+    IConfig,
     MediaInfo,
     PlaylistItem,
 )
 from app.core.errors import map_stderr
 
 try:
-    from PySide6.QtCore import QObject, QProcess
+    from PySide6.QtCore import QObject, QProcess, QTimer
 
     _QT_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _QT_AVAILABLE = False
     QObject = object  # type: ignore[misc,assignment]
+
+# How long a metadata fetch may run before we give up (ms). yt-dlp normally
+# answers in a few seconds; a much longer run means it is stuck (slow site,
+# blocked, or waiting on something) and the UI would otherwise spin forever.
+_FETCH_TIMEOUT_MS = 90_000
 
 
 # ---------------------------------------------------------------------------
@@ -158,17 +164,44 @@ class FormatFetcher(QObject):
     Implements :class:`~app.core.contracts.IFormatFetcher`.
     """
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(self, config: IConfig | None = None, parent: QObject | None = None) -> None:
         if _QT_AVAILABLE:
             super().__init__(parent)
         else:
             super().__init__()
 
+        self._config = config
         self._ytdlp: str = self._locate_ytdlp()
+        # Current in-flight subprocess state (one fetch at a time).
+        self._process: QProcess | None = None
+        self._timer: QTimer | None = None
+        self._done: bool = False
+        self._canceled: bool = False
 
     # ------------------------------------------------------------------
     # IFormatFetcher interface
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_fetch_args(url: str, cookie_args: list[str]) -> list[str]:
+        """Compose the ``yt-dlp -J`` argument list (pure, unit-testable).
+
+        Cookie args are included so age-restricted / sign-in videos can be read
+        at fetch time — not just at download time.
+        """
+        return ["-J", "--no-playlist", *cookie_args, "--", url]
+
+    def _cookie_args(self) -> list[str]:
+        """Cookie CLI flags from the injected config (empty if none/unavailable)."""
+        getter = getattr(self._config, "cookie_cli_args", None)
+        if callable(getter):
+            try:
+                result = getter()
+            except Exception:
+                return []
+            if isinstance(result, list):
+                return [str(a) for a in result]
+        return []
 
     def fetch_formats(
         self,
@@ -176,8 +209,8 @@ class FormatFetcher(QObject):
         on_done: Callable[[MediaInfo, list[FormatInfo]], None],
         on_error: Callable[[AppError], None],
     ) -> None:
-        """Run ``yt-dlp -J --no-playlist`` and parse the result."""
-        args = ["-J", "--no-playlist", "--", url]
+        """Run ``yt-dlp -J --no-playlist`` (with cookies) and parse the result."""
+        args = self._build_fetch_args(url, self._cookie_args())
         self._run(
             args,
             lambda stdout, stderr: self._handle_dump(stdout, stderr, on_done, on_error),
@@ -200,12 +233,29 @@ class FormatFetcher(QObject):
     # Subprocess helpers
     # ------------------------------------------------------------------
 
+    def cancel(self) -> None:
+        """Cancel the in-flight fetch (if any). Suppresses its callback.
+
+        The UI resets itself on cancel; we just stop the subprocess/timer and
+        make sure the pending ``on_finish`` never fires.
+        """
+        self._canceled = True
+        if self._timer is not None:
+            self._timer.stop()
+        if self._process is not None and _QT_AVAILABLE:
+            self._process.kill()
+
     def _run(
         self,
         extra_args: list[str],
         on_finish: Callable[[str, str], None],
     ) -> None:
-        """Launch yt-dlp and invoke *on_finish* with (stdout, stderr)."""
+        """Launch yt-dlp and invoke *on_finish* with (stdout, stderr) exactly once.
+
+        Guards against the UI spinning forever: a timeout kills a stuck process,
+        and ``errorOccurred`` (e.g. the binary can't start) is reported instead
+        of being silently dropped.
+        """
         if not _QT_AVAILABLE:  # pragma: no cover
             return
 
@@ -219,8 +269,22 @@ class FormatFetcher(QObject):
             pass
 
         process = QProcess(self)
+        self._process = process
+        self._done = False
+        self._canceled = False
         stdout_buf: list[str] = []
         stderr_buf: list[str] = []
+
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        self._timer = timer
+
+        def _finish_once(stdout: str, stderr: str) -> None:
+            if self._done or self._canceled:
+                return
+            self._done = True
+            timer.stop()
+            on_finish(stdout, stderr)
 
         def _read_out() -> None:
             raw = bytes(process.readAllStandardOutput().data()).decode("utf-8", errors="replace")
@@ -231,12 +295,35 @@ class FormatFetcher(QObject):
             stderr_buf.append(raw)
 
         def _finished(_exit_code: int, _exit_status: object) -> None:
-            on_finish("".join(stdout_buf), "".join(stderr_buf))
+            _finish_once("".join(stdout_buf), "".join(stderr_buf))
 
+        def _error(err: object) -> None:
+            # FailedToStart = the binary path is wrong/missing; report it clearly.
+            # Other errors (e.g. Crashed from our own kill()) are handled by the
+            # timeout/cancel/finished paths, so ignore them here.
+            if err == QProcess.ProcessError.FailedToStart:
+                _finish_once(
+                    "",
+                    "ERROR: yt-dlp could not be started. Check its path in Settings → Binaries.",
+                )
+
+        def _timeout() -> None:
+            if self._done or self._canceled:
+                return
+            process.kill()
+            _finish_once(
+                "",
+                "ERROR: Fetch timed out. The site may be slow or blocked, "
+                "or the video may need cookies (Settings → Cookies).",
+            )
+
+        timer.timeout.connect(_timeout)
         process.readyReadStandardOutput.connect(_read_out)
         process.readyReadStandardError.connect(_read_err)
         process.finished.connect(_finished)
+        process.errorOccurred.connect(_error)
         process.start(self._ytdlp, extra_args)
+        timer.start(_FETCH_TIMEOUT_MS)
 
     # ------------------------------------------------------------------
     # Parse callbacks
@@ -253,11 +340,35 @@ class FormatFetcher(QObject):
             on_error(map_stderr(stderr))
             return
         try:
-            data: dict[str, object] = json.loads(stdout)
-            media = _parse_media_info(data)
-            formats = _parse_format_list(data)
+            parsed: object = json.loads(stdout)
+        except json.JSONDecodeError as exc:
+            on_error(
+                AppError(
+                    kind=ErrorKind.UNKNOWN,
+                    user_message=f"Failed to parse yt-dlp output: {exc}",
+                    raw=stdout[:500],
+                )
+            )
+            return
+        # yt-dlp can exit 0 yet emit ``null`` (or a non-object) for a URL it can't
+        # resolve to a single video — surface the real reason from stderr instead
+        # of crashing on ``None.get(...)``.
+        if not isinstance(parsed, dict):
+            error = map_stderr(stderr) if stderr.strip() else None
+            on_error(
+                error
+                or AppError(
+                    kind=ErrorKind.UNAVAILABLE,
+                    user_message="Couldn't read this video's info. Check the link and try again.",
+                    raw=stdout[:500],
+                )
+            )
+            return
+        try:
+            media = _parse_media_info(parsed)
+            formats = _parse_format_list(parsed)
             on_done(media, formats)
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        except (KeyError, TypeError, AttributeError, ValueError) as exc:
             on_error(
                 AppError(
                     kind=ErrorKind.UNKNOWN,

@@ -93,6 +93,11 @@ class YtDlpCommandBuilder:
 
     def common(self, concurrent_fragments: int = 4) -> YtDlpCommandBuilder:
         """Add flags shared across all download modes."""
+        # Only ever download the single video the user selected. Without this, a
+        # URL that carries a playlist (e.g. ...&list=WL from "Watch Later") makes
+        # yt-dlp download the whole list. The fetch step already uses
+        # --no-playlist; the download must match (playlist support is deferred).
+        self._add("--no-playlist")
         self._add("--windows-filenames")
         self._add("--continue")
         self._add("--concurrent-fragments", str(concurrent_fragments))

@@ -28,6 +28,7 @@ class OmniBar(QWidget):
     """Hero omni-bar with manual Fetch button and URL validation."""
 
     fetch_requested = Signal(str)
+    cancel_requested = Signal()
 
     def __init__(self, reduced_motion: bool = False, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -74,7 +75,7 @@ class OmniBar(QWidget):
         self.fetch_btn.setObjectName("FetchBtn")
         self.fetch_btn.setEnabled(False)
         self.fetch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.fetch_btn.clicked.connect(self._on_return)
+        self.fetch_btn.clicked.connect(self._on_btn)
         bar_layout.addWidget(self.fetch_btn)
         outer.addWidget(bar)
 
@@ -87,6 +88,13 @@ class OmniBar(QWidget):
         valid = self.is_valid_url(text)
         self.fetch_btn.setEnabled(valid and not self._fetching)
 
+    def _on_btn(self) -> None:
+        """Button click: cancel while fetching, otherwise start a fetch."""
+        if self._fetching:
+            self.cancel_requested.emit()
+        else:
+            self._on_return()
+
     def _on_return(self) -> None:
         if self._fetching:
             return
@@ -98,8 +106,9 @@ class OmniBar(QWidget):
     def set_fetching(self, fetching: bool) -> None:
         self._fetching = fetching
         if fetching:
-            self.fetch_btn.setText("Fetching")
-            self.fetch_btn.setEnabled(False)
+            # Stays enabled so the user can cancel a stuck fetch.
+            self.fetch_btn.setText("Cancel")
+            self.fetch_btn.setEnabled(True)
         else:
             self.fetch_btn.setText("Fetch")
             self.fetch_btn.setEnabled(self.is_valid_url(self.input.text()))

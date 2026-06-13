@@ -112,6 +112,26 @@ class Config:
         sub = str(self._data.get("audio_subfolder", CONFIG_DEFAULTS["audio_subfolder"]))
         return base / sub
 
+    def cookie_cli_args(self) -> list[str]:
+        """Cookie CLI args for the current config, or ``[]`` if cookies are off.
+
+        Shared by the metadata fetch (``-J``) and anywhere else that needs the
+        same cookie flags the download uses, so age-restricted / sign-in videos
+        can be *fetched*, not just downloaded.
+
+        - ``file`` source → ``--cookies <path>`` (works on every browser, incl.
+          Chrome where ``--cookies-from-browser`` fails on app-bound encryption).
+        - ``browser`` source → ``--cookies-from-browser <browser>``.
+        """
+        if not bool(self._data.get("cookies_enabled", False)):
+            return []
+        source = str(self._data.get("cookies_source", CookieSource.BROWSER.value))
+        if source == CookieSource.FILE.value:
+            path = str(self._data.get("cookies_file_path", "") or "")
+            return ["--cookies", path] if path else []
+        browser = str(self._data.get("browser_choice", "firefox") or "firefox")
+        return ["--cookies-from-browser", browser] if browser else []
+
     def as_download_options(
         self,
         url: str,

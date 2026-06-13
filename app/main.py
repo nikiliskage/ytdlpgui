@@ -117,7 +117,7 @@ def main() -> int:
     app.setStyleSheet(load_qss(str(config.get("accent_theme") or "purple")))
     reduced_motion = bool(config.get("reduced_motion"))
 
-    window = MainWindow(FormatFetcher(), YtDlpRunner, config)
+    window = MainWindow(FormatFetcher(config), YtDlpRunner, config)
 
     splash = Splash(_build_steps(config), reduced_motion)
 

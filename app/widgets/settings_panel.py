@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSlider,
@@ -281,11 +282,34 @@ class SettingsPanel(QWidget):
         self.cookies_toggle = self._toggle_row(
             "Use cookies for sign-in content", "cookies_enabled", on_change=self._on_cookies
         )
-        self.cookie_source = _Pills(
-            ["firefox", "chrome", "edge", "file…"], str(self._get("browser_choice", "chrome"))
-        )
-        self.cookie_source.selected.connect(lambda v: self._set("browser_choice", v))
+        # Source: Firefox (read directly) or a cookies.txt file. Picking Firefox
+        # uses --cookies-from-browser; "cookies.txt" switches to --cookies <file>
+        # and reveals a file picker. Chrome/Edge are NOT offered as direct sources:
+        # they use app-bound cookie encryption that third-party tools can't decrypt
+        # (the "DPAPI" error) — their users export a cookies.txt instead.
+        source_is_file = str(self._get("cookies_source", "browser")) == c.CookieSource.FILE.value
+        if not source_is_file and str(self._get("browser_choice", "")) != "firefox":
+            self._set("browser_choice", "firefox")  # only Firefox is offered as a browser
+        initial = "cookies.txt" if source_is_file else "firefox"
+        self.cookie_source = _Pills(["firefox", "cookies.txt"], initial)
+        self.cookie_source.selected.connect(self._on_cookie_source)
         self._body.addWidget(self.cookie_source)
+
+        self.cookies_file = PathField(
+            str(self._get("cookies_file_path", "")), show_status=False, pick_dir=False
+        )
+        self.cookies_file.path_changed.connect(lambda v: self._set("cookies_file_path", v))
+        self._body.addWidget(self.cookies_file)
+
+        self._cookie_hint = QLabel(
+            "Using Chrome or Edge? They can't be read directly (app-bound encryption) — "
+            "export a cookies.txt file and pick it here instead."
+        )
+        self._cookie_hint.setProperty("class", "sp-sublabel")
+        self._cookie_hint.setWordWrap(True)
+        self._cookie_hint.setContentsMargins(0, 6, 0, 0)
+        self._body.addWidget(self._cookie_hint)
+
         self._note = QWidget()
         self._note.setObjectName("SpNote")
         note_layout = QHBoxLayout(self._note)
@@ -297,9 +321,8 @@ class SettingsPanel(QWidget):
         note.setWordWrap(True)
         note_layout.addWidget(note)
         self._body.addWidget(self._note)
-        cookies_on = bool(self._get("cookies_enabled", False))
-        self.cookie_source.setVisible(cookies_on)
-        self._note.setVisible(cookies_on)
+
+        self._update_cookie_views()
 
         # Maintenance
         self._section_label("MAINTENANCE")
@@ -518,10 +541,61 @@ class SettingsPanel(QWidget):
         style.polish(self._update_status)
         self._update_status.setVisible(True)
 
-    def _on_cookies(self, enabled: bool) -> None:
+    def _on_cookie_source(self, value: str) -> None:
+        """Persist the cookie source: a browser name, or the cookies.txt file."""
+        if value == "cookies.txt":
+            self._set("cookies_source", c.CookieSource.FILE.value)
+        else:
+            self._set("cookies_source", c.CookieSource.BROWSER.value)
+            self._set("browser_choice", value)
+        self._update_cookie_views()
+
+    def _update_cookie_views(self) -> None:
+        """Show/hide cookie sub-controls based on enabled state + selected source."""
+        enabled = bool(self._get("cookies_enabled", False))
+        is_file = str(self._get("cookies_source", "browser")) == c.CookieSource.FILE.value
         self.cookie_source.setVisible(enabled)
+        self.cookies_file.setVisible(enabled and is_file)
+        self._cookie_hint.setVisible(enabled and not is_file)
         self._note.setVisible(enabled)
+
+    def _on_cookies(self, enabled: bool) -> None:
+        # Show a one-time disclaimer the first time cookies are turned on. If the
+        # user declines, revert the toggle and don't enable the module.
+        if enabled and not bool(self._get("cookies_consent_accepted", False)):
+            if self._ask_cookie_consent():
+                self._set("cookies_consent_accepted", True)
+            else:
+                self.cookies_toggle.set_checked(False)  # re-enters _on_cookies(False)
+                return
+        self._update_cookie_views()
         self.cookies_enabled.emit(enabled)
+
+    def _ask_cookie_consent(self) -> bool:
+        """Blocking disclaimer shown before cookies are first enabled.
+
+        Returns True if the user accepts. Cookies grant full account access, so the
+        user must explicitly opt in and accept responsibility.
+        """
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Enable cookies")
+        box.setText("Use your browser cookies for sign-in / age-restricted downloads?")
+        box.setInformativeText(
+            "A cookie is a live session token — it grants full access to your signed-in "
+            "account. Never share it.\n\n"
+            "• This app reads cookies locally at download time and passes them only to "
+            "yt-dlp. It never stores, logs, or uploads them.\n"
+            "• Strongly consider using a secondary account: heavy use can trigger rate "
+            "limits or account action by the site.\n"
+            "• You are responsible for complying with each site's Terms of Service and "
+            "applicable copyright law. Use this feature lawfully and at your own risk."
+        )
+        accept = box.addButton("I understand — enable", QMessageBox.ButtonRole.AcceptRole)
+        cancel = box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(cancel)  # safest default
+        box.exec()
+        return box.clickedButton() is accept
 
     # -- open / close ---------------------------------------------------------
     def is_open(self) -> bool:

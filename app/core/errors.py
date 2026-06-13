@@ -17,7 +17,13 @@ _PATTERNS: list[tuple[re.Pattern[str], ErrorKind, str]] = [
     (
         re.compile(r"Sign in to confirm your age", re.IGNORECASE),
         ErrorKind.AGE_RESTRICTED,
-        "This video requires age verification. Sign in or provide cookies.",
+        "This video is age-restricted — it needs sign-in cookies.",
+    ),
+    (
+        # YouTube's bot check; same remedy as age restriction (sign-in cookies).
+        re.compile(r"Sign in to confirm you.?re not a bot", re.IGNORECASE),
+        ErrorKind.AGE_RESTRICTED,
+        "The site wants to confirm you're not a bot — it needs sign-in cookies.",
     ),
     (
         re.compile(r"Requested format is not available", re.IGNORECASE),

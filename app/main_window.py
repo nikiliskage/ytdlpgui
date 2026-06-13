@@ -137,11 +137,13 @@ class MainWindow(QWidget):
         self.omni = OmniBar(self._reduced_motion)
         self.omni.setFixedWidth(_COLUMN_WIDTH)
         self.omni.fetch_requested.connect(self._on_fetch)
+        self.omni.cancel_requested.connect(self._on_cancel_fetch)
         self._content_layout.addWidget(self.omni, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.error_band = ErrorBand()
         self.error_band.setMaximumWidth(900)
         self.error_band.retry.connect(self._retry)
+        self.error_band.action.connect(self._on_enable_cookies)
         self.error_band.setVisible(False)
         self._content_layout.addWidget(self.error_band, 0, Qt.AlignmentFlag.AlignHCenter)
 
@@ -218,8 +220,37 @@ class MainWindow(QWidget):
         self.omni.set_fetching(False)
         self.skeleton.setVisible(False)
         self.media_card.setVisible(False)
-        self.error_band.set_message(error.user_message or error.raw or "Unknown error.")
+        message = error.user_message or error.raw or "Unknown error."
+        # Errors whose remedy is cookies: tailor the guidance to whether the cookie
+        # module is already on, and offer a one-click "Enable cookies" when it's off.
+        if error.kind == c.ErrorKind.AGE_RESTRICTED:
+            if bool(self._cfg("cookies_enabled", False)):
+                message = (
+                    "Sign-in cookies didn't work for this video. Make sure you're signed in "
+                    "to the site and your cookies are fresh, then Retry."
+                )
+                self.error_band.set_action("")
+            else:
+                message = (
+                    "This video needs sign-in cookies (age-restricted or a bot check). "
+                    "Turn on cookies in Settings → Cookies, then Retry."
+                )
+                self.error_band.set_action("Enable cookies")
+        else:
+            self.error_band.set_action("")
+        self.error_band.set_message(message)
         self.error_band.setVisible(True)
+
+    def _on_cancel_fetch(self) -> None:
+        """User cancelled an in-flight fetch: stop yt-dlp and reset to idle."""
+        cancel = getattr(self._fetcher, "cancel", None)
+        if callable(cancel):
+            cancel()
+        self.state.phase = c.AppPhase.EMPTY
+        self.omni.set_fetching(False)
+        self.skeleton.setVisible(False)
+        self.media_card.setVisible(False)
+        self.error_band.setVisible(False)
 
     def _retry(self) -> None:
         if self.state.url:

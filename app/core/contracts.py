@@ -232,8 +232,9 @@ CONFIG_DEFAULTS: dict[str, object] = {
     "video_subfolder": "videos",
     "audio_subfolder": "musics",
     "cookies_enabled": False,
+    "cookies_consent_accepted": False,  # one-time disclaimer accepted (don't re-prompt)
     "cookies_source": CookieSource.BROWSER.value,
-    "browser_choice": "chrome",
+    "browser_choice": "firefox",  # only Firefox can be read directly (Chrome/Edge: app-bound enc.)
     "cookies_file_path": "",
     "default_preset": PRESET_BEST,
     "audio_format": "opus",

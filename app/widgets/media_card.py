@@ -187,6 +187,15 @@ class MediaCard(QWidget):
         row.addWidget(link)
         return band
 
+    def _cookies_enabled(self) -> bool:
+        """True if the cookie module is on (the fetch already applied cookies)."""
+        if self._config is None:
+            return False
+        try:
+            return bool(self._config.get("cookies_enabled"))
+        except Exception:
+            return False
+
     # -- destination label ----------------------------------------------------
     def _dest_name(self, is_audio: bool) -> str:
         """Footer label = the configured subfolder name (e.g. 'videosad\\')."""
@@ -217,7 +226,10 @@ class MediaCard(QWidget):
         channel = media.channel or "—"
         dur = _fmt_duration(media.duration)
         self._channel.setText(f"{channel}  ·  {dur}")
-        self._cookie_band.setVisible(media.needs_cookies)
+        # Only nag about cookies when they aren't already on. If the cookie module
+        # is enabled the fetch already used them (that's how an age-restricted video
+        # loaded), so prompting "needs cookies / Enable cookies" would be illogical.
+        self._cookie_band.setVisible(media.needs_cookies and not self._cookies_enabled())
         self.formats.set_formats(formats)
         self.refresh_dest()
         if self._state.mode == c.DownloadMode.SUBTITLE:
