@@ -22,7 +22,9 @@ avoids antivirus/SmartScreen false positives and ffmpeg licensing concerns):
 - **yt-dlp.exe** — https://github.com/yt-dlp/yt-dlp/releases
 - **ffmpeg.exe** — https://www.gyan.dev/ffmpeg/builds/ (needed for merging video+audio and audio conversion)
 
-Put both in `C:\yt-dlp\` (the default the app looks for) or point to them in **Settings → Binaries**.
+Put both **next to the app** — the app searches its own folder (the install folder) first — or
+point to them in **Settings → Binaries**. (In a source checkout the repo root, or `C:\yt-dlp`,
+also works.)
 
 ## Install (from source, during development)
 ```powershell
@@ -35,7 +37,15 @@ A single GUI `.exe` is produced with PyInstaller (binaries stay external):
 ```powershell
 pyinstaller ytdlpgui.spec
 ```
-> The unsigned `.exe` may trigger a Windows SmartScreen prompt ("More info → Run anyway").
+A Windows **setup installer** (with a license/disclaimer you must accept, a Start Menu
+shortcut, and an uninstaller; installs per-user — no admin — under
+`%LocalAppData%\Programs\yt-dlp-gui`, with downloads defaulting to `Documents\yt-dlp-gui\video`
+and `\audio`) is then built from `installer/ytdlpgui.iss` with
+[Inno Setup](https://jrsoftware.org/isinfo.php):
+```powershell
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\ytdlpgui.iss
+```
+> The unsigned `.exe`/installer may trigger a Windows SmartScreen prompt ("More info → Run anyway").
 
 ## Features
 - Real-format selector (quality chips + advanced format table); video downloads prefer AAC audio

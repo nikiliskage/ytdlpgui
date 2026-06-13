@@ -107,8 +107,8 @@ def test_subtitle_chips_single_select(qtbot, mock_config) -> None:  # type: igno
 
 
 def test_dest_label_reflects_configured_folder(qtbot, mock_config) -> None:  # type: ignore[no-untyped-def]
-    mock_config.set("video_subfolder", "videosad")
-    mock_config.set("audio_subfolder", "tunes")
+    mock_config.set("video_dir", r"C:\stuff\videosad")
+    mock_config.set("audio_dir", r"C:\stuff\tunes")
     state = UiState()
     card = MediaCard(state, reduced_motion=True, config=mock_config)
     qtbot.addWidget(card)

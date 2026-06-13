@@ -101,16 +101,22 @@ class Config:
     # ------------------------------------------------------------------
 
     def video_dir(self) -> Path:
-        """Resolved absolute path for video downloads."""
-        base = Path(str(self._data.get("base_dir", CONFIG_DEFAULTS["base_dir"])))
-        sub = str(self._data.get("video_subfolder", CONFIG_DEFAULTS["video_subfolder"]))
-        return base / sub
+        """Full video download folder. Empty config → ``<Documents>\\yt-dlp-gui\\video``."""
+        raw = str(self._data.get("video_dir", "") or "")
+        if raw:
+            return Path(raw)
+        from app.core.paths import default_download_base
+
+        return default_download_base() / "video"
 
     def audio_dir(self) -> Path:
-        """Resolved absolute path for audio downloads."""
-        base = Path(str(self._data.get("base_dir", CONFIG_DEFAULTS["base_dir"])))
-        sub = str(self._data.get("audio_subfolder", CONFIG_DEFAULTS["audio_subfolder"]))
-        return base / sub
+        """Full audio download folder. Empty config → ``<Documents>\\yt-dlp-gui\\audio``."""
+        raw = str(self._data.get("audio_dir", "") or "")
+        if raw:
+            return Path(raw)
+        from app.core.paths import default_download_base
+
+        return default_download_base() / "audio"
 
     def cookie_cli_args(self) -> list[str]:
         """Cookie CLI args for the current config, or ``[]`` if cookies are off.

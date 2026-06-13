@@ -2,8 +2,10 @@
 
 Resolution order for both binaries:
   1. Explicit path from config (if provided and the file exists)
-  2. C:\\yt-dlp  (well-known Windows installation directory)
-  3. PATH via shutil.which
+  2. The application's own folder — next to the .exe when packaged (so users just
+     drop yt-dlp.exe / ffmpeg.exe beside the app), or the repo root in dev
+  3. C:\\yt-dlp  (legacy well-known Windows directory)
+  4. PATH via shutil.which
 
 Version detection uses no_window_kwargs() to suppress console flash on Windows.
 """
@@ -22,8 +24,41 @@ from app.core.contracts import BinaryStatus
 _YTDLP_DOWNLOAD_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest"
 _FFMPEG_DOWNLOAD_URL = "https://ffmpeg.org/download.html"
 
-# Well-known install location on Windows.
+# Legacy well-known install location on Windows (kept as a fallback).
 _YTDLP_DEFAULT_DIR = Path(r"C:\yt-dlp")
+
+
+def app_binary_dir() -> Path:
+    """Folder to search for the binaries that live alongside the app.
+
+    When packaged with PyInstaller this is the directory of the running ``.exe``
+    (the install folder, where the user keeps yt-dlp.exe / ffmpeg.exe). In a
+    source checkout it is the repository root.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[2]
+
+
+def documents_dir() -> Path:
+    """The user's Documents folder (honours OneDrive redirection on Windows)."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            buf = ctypes.create_unicode_buffer(260)
+            # SHGetFolderPathW(None, CSIDL_PERSONAL=0x0005, None, 0, buf)
+            ctypes.windll.shell32.SHGetFolderPathW(None, 0x0005, None, 0, buf)
+            if buf.value:
+                return Path(buf.value)
+        except Exception:
+            pass
+    return Path.home() / "Documents"
+
+
+def default_download_base() -> Path:
+    """Default base for downloads: ``<Documents>\\yt-dlp-gui`` (video/ + audio/)."""
+    return documents_dir() / "yt-dlp-gui"
 
 
 # ---------------------------------------------------------------------------
@@ -128,11 +163,16 @@ def resolve_ytdlp(config_path: str = "") -> BinaryStatus:
     if config_path:
         candidates.append(Path(config_path))
 
-    # (b) Well-known Windows location: C:\\yt-dlp\\yt-dlp.exe
+    # (b) Next to the app (the .exe folder when packaged)
+    app_dir = app_binary_dir()
+    candidates.append(app_dir / "yt-dlp.exe")
+    candidates.append(app_dir / "yt-dlp")
+
+    # (c) Legacy well-known location: C:\\yt-dlp\\yt-dlp.exe
     candidates.append(_YTDLP_DEFAULT_DIR / "yt-dlp.exe")
     candidates.append(_YTDLP_DEFAULT_DIR / "yt-dlp")
 
-    # (c) PATH
+    # (d) PATH
     which_result = shutil.which("yt-dlp")
     if which_result:
         candidates.append(Path(which_result))
@@ -143,7 +183,7 @@ def resolve_ytdlp(config_path: str = "") -> BinaryStatus:
             found=False,
             path=None,
             version=None,
-            message=("yt-dlp not found. Place yt-dlp.exe in C:\\yt-dlp\\ or add it to PATH."),
+            message=("yt-dlp not found. Put yt-dlp.exe next to the app, or set it in Settings."),
             download_url=_YTDLP_DOWNLOAD_URL,
         )
 
@@ -172,11 +212,16 @@ def resolve_ffmpeg(config_path: str = "") -> BinaryStatus:
     if config_path:
         candidates.append(Path(config_path))
 
-    # (b) Well-known Windows location: C:\\yt-dlp\\ffmpeg.exe
+    # (b) Next to the app (the .exe folder when packaged)
+    app_dir = app_binary_dir()
+    candidates.append(app_dir / "ffmpeg.exe")
+    candidates.append(app_dir / "ffmpeg")
+
+    # (c) Legacy well-known location: C:\\yt-dlp\\ffmpeg.exe
     candidates.append(_YTDLP_DEFAULT_DIR / "ffmpeg.exe")
     candidates.append(_YTDLP_DEFAULT_DIR / "ffmpeg")
 
-    # (c) PATH
+    # (d) PATH
     which_result = shutil.which("ffmpeg")
     if which_result:
         candidates.append(Path(which_result))
@@ -187,7 +232,7 @@ def resolve_ffmpeg(config_path: str = "") -> BinaryStatus:
             found=False,
             path=None,
             version=None,
-            message=("ffmpeg not found. Place ffmpeg.exe in C:\\yt-dlp\\ or add it to PATH."),
+            message=("ffmpeg not found. Put ffmpeg.exe next to the app, or set it in Settings."),
             download_url=_FFMPEG_DOWNLOAD_URL,
         )
 

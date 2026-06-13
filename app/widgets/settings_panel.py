@@ -7,14 +7,11 @@ fragments + max concurrent downloads) / Cookies / Maintenance / About.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
-from PySide6.QtCore import QProcess, Qt, QTimer, Signal
+from PySide6.QtCore import QProcess, Qt, Signal
 from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -154,8 +151,6 @@ class SettingsPanel(QWidget):
         self._config = config
         self._reduced_motion = reduced_motion
         self._open = False
-        # Per-field "discard unsaved edits" resetters, run when the panel opens.
-        self._reset_fns: list[Callable[[], None]] = []
         # yt-dlp self-update process + captured output (None when idle).
         self._update_proc: QProcess | None = None
         self._update_out: list[str] = []
@@ -227,26 +222,29 @@ class SettingsPanel(QWidget):
         # Binaries
         self._section_label("BINARIES")
         self._field_label("yt-dlp")
-        self.ytdlp_field = PathField(str(self._get("ytdlp_path")))
+        self.ytdlp_field = PathField(
+            str(self._get("ytdlp_path")),
+            read_only=True,
+            placeholder="Auto-detected next to the app — Browse to override",
+        )
         self.ytdlp_field.path_changed.connect(lambda v: self._set("ytdlp_path", v))
         self._body.addWidget(self.ytdlp_field)
         self._field_label("ffmpeg")
-        self.ffmpeg_field = PathField(str(self._get("ffmpeg_path")))
+        self.ffmpeg_field = PathField(
+            str(self._get("ffmpeg_path")),
+            read_only=True,
+            placeholder="Auto-detected next to the app — Browse to override",
+        )
         self.ffmpeg_field.path_changed.connect(lambda v: self._set("ffmpeg_path", v))
         self._body.addWidget(self.ffmpeg_field)
 
-        # Output
+        # Output — each download type has its own full folder path (Browse to pick).
+        # Empty config resolves to <Documents>\yt-dlp-gui\{video,audio} at runtime.
         self._section_label("OUTPUT")
-        self._field_label("Base directory")
-        self.base_dir = PathField(str(self._get("base_dir")), show_status=False, pick_dir=True)
-        self.base_dir.path_changed.connect(lambda v: self._set("base_dir", v))
-        self._body.addWidget(self.base_dir)
-        self.video_dir = self._saved_input(
-            "Videos folder", str(self._get("video_subfolder", "videos")), "video_subfolder"
-        )
-        self.music_dir = self._saved_input(
-            "Music folder", str(self._get("audio_subfolder", "musics")), "audio_subfolder"
-        )
+        self._field_label("Video folder")
+        self.video_dir = self._dir_field("video_dir", "video")
+        self._field_label("Audio folder")
+        self.audio_dir = self._dir_field("audio_dir", "audio")
 
         # Subtitles & embedding
         self._section_label("SUBTITLES & EMBEDDING")
@@ -365,63 +363,23 @@ class SettingsPanel(QWidget):
         self._body.addWidget(about_links)
         self._body.addStretch(1)
 
-    def _saved_input(self, label: str, value: str, key: str) -> QLineEdit:
-        """Input + explicit Save button (same row layout/width as Base directory).
+    def _dir_field(self, key: str, default_sub: str) -> PathField:
+        """A full-folder PathField (Browse) bound to *key*.
 
-        The value is *not* written on every keystroke; it only persists when Save
-        is clicked (or Enter pressed). So if the user types and walks away without
-        saving, the previously stored location stays in effect.
+        When unset the box stays empty and shows a short placeholder for the
+        runtime default (``Documents\\yt-dlp-gui\\<sub>``); the actual full path is
+        resolved at download time. Browsing/typing persists an explicit path.
         """
-        lbl = QLabel(label)
-        lbl.setProperty("class", "sp-label")
-        lbl.setContentsMargins(0, 4, 0, 4)
-        self._body.addWidget(lbl)
-
-        row = QHBoxLayout()
-        # Zero margins so the input's left edge lines up with the Base directory
-        # box; without this the layout inherits the style's default insets and
-        # the box drifts slightly to the right.
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(8)
-        field = QLineEdit(value)
-        field.setProperty("class", "sp-input")
-        row.addWidget(field, 1)
-        save = QPushButton("Save")
-        save.setProperty("class", "sp-browse")
-        save.setCursor(Qt.CursorShape.PointingHandCursor)
-        # Match the Browse button width so the folder inputs align with Base
-        # directory; fixed width also stops the box jumping on the "Saved" flash.
-        save.setFixedWidth(82)
-
-        def _set_saved(on: bool) -> None:
-            save.setText("Saved" if on else "Save")
-            save.setProperty("saved", "true" if on else "false")
-            style = save.style()
-            style.unpolish(save)
-            style.polish(save)
-
-        def _commit() -> None:
-            text = field.text().strip()
-            if not text:
-                return  # never persist an empty folder name; keep the old one
-            self._set(key, text)
-            _set_saved(True)  # flash purple
-            QTimer.singleShot(1200, lambda: _set_saved(False))  # back to gray
-
-        save.clicked.connect(_commit)
-        field.returnPressed.connect(_commit)  # Enter also saves
-        row.addWidget(save)
-        wrapper = QWidget()
-        wrapper.setLayout(row)
-        self._body.addWidget(wrapper)
-
-        # Discard unsaved edits when the panel re-opens: snap back to whatever
-        # is currently stored in config (the last saved value).
-        def _reset() -> None:
-            field.setText(str(self._get(key, value)))
-            _set_saved(False)
-
-        self._reset_fns.append(_reset)
+        raw = str(self._get(key, "") or "")
+        field = PathField(
+            raw,
+            show_status=False,
+            pick_dir=True,
+            read_only=True,  # set only via Browse
+            placeholder=f"Documents\\yt-dlp-gui\\{default_sub}",
+        )
+        field.path_changed.connect(lambda v, k=key: self._set(k, v))
+        self._body.addWidget(field)
         return field
 
     def _toggle_row(self, label: str, key: str, on_change: object | None = None) -> Toggle:
@@ -602,10 +560,6 @@ class SettingsPanel(QWidget):
         return self._open
 
     def set_open(self, is_open: bool) -> None:
-        if is_open:
-            # Re-opening shows the saved state; any edit left unsaved is dropped.
-            for reset in self._reset_fns:
-                reset()
         self._open = is_open
         self.setVisible(is_open)
 

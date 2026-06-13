@@ -146,8 +146,8 @@ def mock_fetcher() -> MockFetcher:
 def sample_options(tmp_path: Path) -> c.DownloadOptions:
     return c.DownloadOptions(
         url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        video_dir=tmp_path / "videos",
-        audio_dir=tmp_path / "musics",
+        video_dir=tmp_path / "video",
+        audio_dir=tmp_path / "audio",
     )
 
 

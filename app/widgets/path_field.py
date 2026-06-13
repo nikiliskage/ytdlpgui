@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -24,6 +24,8 @@ class PathField(QWidget):
         value: str = "",
         show_status: bool = True,
         pick_dir: bool = False,
+        placeholder: str = "",
+        read_only: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -36,6 +38,18 @@ class PathField(QWidget):
         row.setSpacing(8)
         self.input = QLineEdit(value)
         self.input.setProperty("class", "sp-input sp-input-mono")
+        if placeholder:
+            self.input.setPlaceholderText(placeholder)
+        # Read-only fields are set only via Browse: lock typing, clicking (no
+        # caret/focus → no text selection), and the right-click copy/paste menu, so
+        # the box can't be edited or copied — only changed through Browse.
+        if read_only:
+            self.input.setReadOnly(True)
+            self.input.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self.input.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+            # Ignore all mouse events: no click, no drag-select, no copy. The box is
+            # purely a display; only the Browse button changes it.
+            self.input.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.input.textChanged.connect(self.path_changed.emit)
         row.addWidget(self.input, 1)
         self.browse = QPushButton("Browse…")

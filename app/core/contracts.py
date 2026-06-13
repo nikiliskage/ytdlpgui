@@ -111,9 +111,9 @@ class DownloadOptions:
     format_id: str | None = None
     preset: str | None = PRESET_BEST
 
-    # Çıktı dizinleri (Config bunları `base_dir / subfolder` olarak çözer).
-    video_dir: Path = field(default_factory=lambda: Path("videos"))
-    audio_dir: Path = field(default_factory=lambda: Path("musics"))
+    # Çıktı dizinleri — tam yol (Config bunları doldurur; boşsa <Documents>\yt-dlp-gui\...).
+    video_dir: Path = field(default_factory=lambda: Path("video"))
+    audio_dir: Path = field(default_factory=lambda: Path("audio"))
     output_template: str = "%(title)s.%(ext)s"
 
     # Ses
@@ -228,9 +228,8 @@ class BinaryStatus:
 #: Tüm ayar alanları + varsayılanları tek yerde. config.py yükleme/migrasyonda
 #: bunu temel alır; eksik/bilinmeyen alanlar buraya göre düşer.
 CONFIG_DEFAULTS: dict[str, object] = {
-    "base_dir": r"C:\yt-dlp",
-    "video_subfolder": "videos",
-    "audio_subfolder": "musics",
+    "video_dir": "",  # empty → <Documents>\yt-dlp-gui\video
+    "audio_dir": "",  # empty → <Documents>\yt-dlp-gui\audio
     "cookies_enabled": False,
     "cookies_consent_accepted": False,  # one-time disclaimer accepted (don't re-prompt)
     "cookies_source": CookieSource.BROWSER.value,

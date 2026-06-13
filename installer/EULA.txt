@@ -1,0 +1,54 @@
+yt-dlp GUI — License & Disclaimer
+=================================
+
+PLEASE READ THIS BEFORE INSTALLING. By installing or using yt-dlp GUI
+("the Software"), you accept the terms below. If you do not agree, do not
+install or use the Software.
+
+1. License (MIT)
+----------------
+The Software is free and open source, licensed under the MIT License.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+
+2. Third-party programs (not included)
+--------------------------------------
+The Software does NOT include yt-dlp.exe or ffmpeg.exe. You obtain those
+yourself from their official sources. They are independent programs governed
+by their own licenses; the Software merely runs the binaries you provide and
+is not affiliated with, and does not redistribute, them.
+
+3. Your responsibility
+----------------------
+You are solely responsible for how you use the Software. In particular:
+ - You must comply with the Terms of Service of every website you access, and
+   with all applicable copyright and other laws.
+ - Download only content you have the right to download. The Software is
+   intended for personal, lawful use.
+ - Some sites prohibit downloading; using the Software against such a site is
+   your decision and your responsibility.
+
+4. Cookies (optional feature)
+-----------------------------
+The optional cookie feature lets the Software act as your signed-in browser to
+access sign-in / age-restricted content. A cookie grants access to your
+account. The Software reads cookies locally and passes them only to yt-dlp;
+it never stores, logs, or transmits them elsewhere. Using cookies — and any
+consequences from the site (rate limits, account actions) — is at your own
+risk. Prefer a secondary account.
+
+5. No affiliation
+-----------------
+yt-dlp GUI is an independent project. It is not affiliated with, endorsed by,
+or sponsored by the yt-dlp project, YouTube, Google, or any other site or
+service.
+
+6. Acceptance
+-------------
+By proceeding with the installation you acknowledge that you have read and
+agree to these terms and accept all responsibility for your use of the
+Software.

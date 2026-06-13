@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-06-12
+## [0.1.0] - 2026-06-13
 
 ### Added
 - App icon — embedded in the built exe and shown in the running app's
@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   encryption can't be decrypted by third-party tools (export a cookies.txt instead); the default
   browser is Firefox.
 - One-time cookie **disclaimer / consent** dialog before the module is first enabled.
+- **Windows installer** (Inno Setup, `installer/ytdlpgui.iss`) with a license/disclaimer the user
+  must accept; installs per-user (no admin) under `%LocalAppData%\Programs\yt-dlp-gui`, with a
+  Start Menu shortcut and an uninstaller. (Built at release time.)
 - Fetch can be **cancelled**, **times out** after 90 s, and reports a binary-start failure instead
   of spinning forever.
 - 179 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).
@@ -58,8 +61,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   silent Opus-in-mp4 case); **Best audio** keeps the source codec instead of always re-encoding
   to Opus.
 - Quality presets 1080p/720p/480p now actually apply (the chip ids matched the preset table).
-- Settings panel: more vertical spacing; Videos/Music inputs aligned with Base directory; subtitle
-  languages are a multi-select (capped at 2) instead of a free-text field.
+- Settings panel: more vertical spacing; subtitle languages are a multi-select (capped at 2)
+  instead of a free-text field. Output is two folder pickers (Video / Audio) and every path field
+  (binaries + folders) is read-only — set only via Browse, so a path can't be mistyped.
 - The media-card destination label reflects the configured output folder name.
 - The omni bar and media card share a fixed 740px width, so switching
   Video/Audio/Subtitle modes (different chip counts) never shifts the centred
@@ -69,6 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   chip already chooses the format, and the setting was always overridden by it.
 - A fixed Fusion dark theme/palette is applied app-wide so the UI no longer follows the OS
   light/dark setting (native window chrome and disabled controls stay dark).
+- The app now looks for `yt-dlp.exe` / `ffmpeg.exe` **next to itself** (the install folder) first,
+  so you can drop the binaries beside the app; `C:\yt-dlp` and PATH remain fallbacks. Downloads
+  default to `Documents\yt-dlp-gui\video` and `\audio` (configurable in Settings).
 - Downloads always pass `--no-playlist`, so a `...&list=` URL (e.g. Watch Later) downloads only the
   selected video instead of the whole playlist.
 - Fetch errors are clearer and actionable (age/bot/members → cookies, geo-block, HTTP 429

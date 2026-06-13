@@ -62,7 +62,7 @@ def test_config_save_creates_json_file(tmp_path: Path, monkeypatch: pytest.Monke
     config_file = _config_file(tmp_path)
     assert config_file.exists()
     data = json.loads(config_file.read_text(encoding="utf-8"))
-    assert "base_dir" in data
+    assert "video_dir" in data
 
 
 # ---------------------------------------------------------------------------
@@ -120,16 +120,25 @@ def test_config_corrupt_file_uses_defaults(tmp_path: Path, monkeypatch: pytest.M
 # ---------------------------------------------------------------------------
 
 
+def test_dirs_default_to_documents_when_unset(tmp_config: Config) -> None:
+    """Empty video_dir/audio_dir resolve under <Documents>/yt-dlp-gui/{video,audio}."""
+    assert tmp_config.get("video_dir") == ""  # default sentinel
+    assert tmp_config.get("audio_dir") == ""
+    video = tmp_config.video_dir()
+    audio = tmp_config.audio_dir()
+    assert (video.name, video.parent.name) == ("video", "yt-dlp-gui")
+    assert (audio.name, audio.parent.name) == ("audio", "yt-dlp-gui")
+
+
 def test_video_dir_and_audio_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """video_dir and audio_dir return base_dir / subfolder as Path."""
+    """video_dir / audio_dir return the configured full paths verbatim."""
     monkeypatch.setenv("YTDLPGUI_CONFIG_DIR", str(tmp_path))
     cfg = Config()
-    cfg.set("base_dir", str(tmp_path / "downloads"))
-    cfg.set("video_subfolder", "vids")
-    cfg.set("audio_subfolder", "audio")
+    cfg.set("video_dir", str(tmp_path / "clips"))
+    cfg.set("audio_dir", str(tmp_path / "tunes"))
 
-    assert cfg.video_dir() == tmp_path / "downloads" / "vids"
-    assert cfg.audio_dir() == tmp_path / "downloads" / "audio"
+    assert cfg.video_dir() == tmp_path / "clips"
+    assert cfg.audio_dir() == tmp_path / "tunes"
 
 
 # ---------------------------------------------------------------------------

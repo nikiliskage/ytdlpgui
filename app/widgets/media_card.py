@@ -198,16 +198,18 @@ class MediaCard(QWidget):
 
     # -- destination label ----------------------------------------------------
     def _dest_name(self, is_audio: bool) -> str:
-        """Footer label = the configured subfolder name (e.g. 'videosad\\')."""
-        key = "audio_subfolder" if is_audio else "video_subfolder"
-        name = "musics" if is_audio else "videos"
+        """Footer label = the folder name of the configured output path (e.g. 'video\\')."""
+        from pathlib import Path
+
+        key = "audio_dir" if is_audio else "video_dir"
+        name = "audio" if is_audio else "video"
         if self._config is not None:
             try:
                 value = self._config.get(key)
             except Exception:
                 value = None
             if value:
-                name = str(value)
+                name = Path(str(value)).name or name
         return f"{name}\\"
 
     def refresh_dest(self) -> None:
