@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2026-06-12
 
 ### Added
-- App icon embedded in the built exe — generated from the title-bar logo
-  (purple-gradient rounded square + download glyph) via `tools/make_icon.py`.
+- App icon — embedded in the built exe and shown in the running app's
+  window/taskbar (`setWindowIcon` + Windows AppUserModelID); generated from the
+  title-bar logo via `tools/make_icon.py`.
 - Project scaffolding: core contracts layer (`app/core/contracts.py`).
 - Tooling: pytest + pytest-qt, ruff, mypy, GitHub Actions CI (Windows), shared test
   fixtures/mocks, project documentation (README, SECURITY, ARCHITECTURE).
@@ -39,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New widget: `SubtitleChips` (single-select subtitle-language chips).
 - Settings "About" section: app name + version, short description, author credit (nikiliskage),
   and a link to the yt-dlp project with a "not affiliated" note.
-- 152 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).
+- 165 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).
 
 ### Changed
 - Video downloads now prefer AAC (m4a) audio so the merged mp4 plays in all players (avoids the
@@ -49,9 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings panel: more vertical spacing; Videos/Music inputs aligned with Base directory; subtitle
   languages are a multi-select (capped at 2) instead of a free-text field.
 - The media-card destination label reflects the configured output folder name.
-- The media card is a fixed width matching the omni bar, so switching
-  Video/Audio/Subtitle modes (different chip counts) no longer shifts the
-  centred content. The Audio "Best" chip is relabelled to match the Video one.
+- The omni bar and media card share a fixed 740px width, so switching
+  Video/Audio/Subtitle modes (different chip counts) never shifts the centred
+  content and the 4-chip Video/Audio rows don't clip their labels. The Audio
+  "Best" chip is relabelled to match the Video one.
 - Removed the redundant Settings "Audio format" section — the media-card audio
   chip already chooses the format, and the setting was always overridden by it.
 - A fixed Fusion dark theme/palette is applied app-wide so the UI no longer follows the OS

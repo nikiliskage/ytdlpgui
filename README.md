@@ -2,8 +2,8 @@
 
 A dark-themed **PySide6 desktop GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp)** (Windows-first).
 Paste a link, pick a real available format, and download — with a built-in queue, cookie
-support for sign-in/age-restricted content, audio extraction (opus by default), subtitles,
-and one-click yt-dlp self-update.
+support for sign-in/age-restricted content, audio extraction, subtitles, and one-click
+yt-dlp self-update.
 
 > **Status:** in development (`0.1.0`).
 
