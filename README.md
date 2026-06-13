@@ -6,6 +6,8 @@ support for sign-in/age-restricted content, audio extraction, subtitles, and one
 yt-dlp self-update.
 
 > **Status:** in development (`0.1.0`).
+>
+> 📖 **Documentation:** <https://nikiliskage.github.io/ytdlpgui/>
 
 ## Why
 Using yt-dlp from the command line, two things are annoying:
