@@ -221,20 +221,18 @@ class MainWindow(QWidget):
         self.skeleton.setVisible(False)
         self.media_card.setVisible(False)
         message = error.user_message or error.raw or "Unknown error."
-        # Errors whose remedy is cookies: tailor the guidance to whether the cookie
-        # module is already on, and offer a one-click "Enable cookies" when it's off.
+        # Errors whose remedy is cookies: keep the specific reason, then tailor the
+        # guidance to whether the cookie module is already on, and offer a one-click
+        # "Enable cookies" when it's off.
         if error.kind == c.ErrorKind.AGE_RESTRICTED:
             if bool(self._cfg("cookies_enabled", False)):
-                message = (
-                    "Sign-in cookies didn't work for this video. Make sure you're signed in "
-                    "to the site and your cookies are fresh, then Retry."
+                message += (
+                    " Your cookies didn't work — make sure you're signed in and they're "
+                    "fresh, then Retry."
                 )
                 self.error_band.set_action("")
             else:
-                message = (
-                    "This video needs sign-in cookies (age-restricted or a bot check). "
-                    "Turn on cookies in Settings → Cookies, then Retry."
-                )
+                message += " Turn on cookies in Settings → Cookies, then Retry."
                 self.error_band.set_action("Enable cookies")
         else:
             self.error_band.set_action("")

@@ -7,11 +7,11 @@ locally on your machine.
 ## Cookies
 The optional cookie module exists to download sign-in / age-restricted content.
 
-- Cookies are **read locally** at download time (via `--cookies-from-browser` or a `cookies.txt`
-  you select) and passed **only to yt-dlp**, which sends them only to the target site — exactly
-  as your browser would.
+- Cookies are **read locally** when fetching and downloading (via `--cookies-from-browser` for
+  Firefox, or a `cookies.txt` file you select) and passed **only to yt-dlp**, which sends them only
+  to the target site — exactly as your browser would.
 - This app **never stores cookies on disk, never logs them, and never uploads them anywhere**.
-- A cookie equals a live session token: **do not share** your `cookies.txt`. Anyone with it can
+- A cookie equals a live session token: **do not share** your cookies. Anyone with them can
   access your account.
 - Recommendation: use a **secondary account** for downloading. Heavy automated use with your main
   account can occasionally trigger temporary rate limits from the provider.

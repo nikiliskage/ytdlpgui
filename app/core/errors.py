@@ -26,29 +26,47 @@ _PATTERNS: list[tuple[re.Pattern[str], ErrorKind, str]] = [
         "The site wants to confirm you're not a bot — it needs sign-in cookies.",
     ),
     (
+        # Members-only: fetchable with cookies for a member account.
+        re.compile(r"members-only|members only|join this channel", re.IGNORECASE),
+        ErrorKind.AGE_RESTRICTED,
+        "This is members-only content — it needs sign-in cookies for a member account.",
+    ),
+    (
         re.compile(r"Requested format is not available", re.IGNORECASE),
         ErrorKind.FORMAT_UNAVAILABLE,
-        "The requested format is not available for this video.",
+        "That format isn't available for this video. Pick another quality/format, or use Best.",
     ),
     (
         re.compile(r"Private video", re.IGNORECASE),
         ErrorKind.UNAVAILABLE,
-        "This video is private.",
-    ),
-    (
-        re.compile(r"Video unavailable", re.IGNORECASE),
-        ErrorKind.UNAVAILABLE,
-        "This video is unavailable.",
+        "This video is private — you need an account that's been granted access.",
     ),
     (
         re.compile(r"has not made this video available in your country", re.IGNORECASE),
         ErrorKind.UNAVAILABLE,
-        "This video is not available in your country (geo-blocked).",
+        "This video is blocked in your country (geo-restricted).",
+    ),
+    (
+        re.compile(r"This live event will begin|Premieres in|Premiere will begin", re.IGNORECASE),
+        ErrorKind.UNAVAILABLE,
+        "This is a scheduled live stream / premiere that hasn't started yet.",
+    ),
+    (
+        re.compile(r"Video unavailable", re.IGNORECASE),
+        ErrorKind.UNAVAILABLE,
+        "This video is unavailable (removed, or it never existed).",
     ),
     (
         re.compile(r"(ffmpeg|ffprobe).*(not found|not installed|Aborting)", re.IGNORECASE),
         ErrorKind.FFMPEG_MISSING,
-        "ffmpeg/ffprobe is not installed or not found. Please install ffmpeg.",
+        "ffmpeg wasn't found. Set its path in Settings → Binaries (needed to merge video + audio).",
+    ),
+    (
+        # Rate limiting — must precede the generic "HTTP Error \\d+" network rule.
+        re.compile(r"HTTP Error 429|Too Many Requests", re.IGNORECASE),
+        ErrorKind.NETWORK,
+        "The site is rate-limiting you (HTTP 429). Wait a few minutes — or sign in with "
+        "cookies — then retry.",
     ),
     (
         re.compile(
@@ -57,7 +75,7 @@ _PATTERNS: list[tuple[re.Pattern[str], ErrorKind, str]] = [
             re.IGNORECASE,
         ),
         ErrorKind.NETWORK,
-        "A network error occurred. Check your connection and try again.",
+        "Network problem — check your connection and retry.",
     ),
 ]
 

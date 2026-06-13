@@ -40,18 +40,23 @@ pyinstaller ytdlpgui.spec
 ## Features
 - Real-format selector (quality chips + advanced format table); video downloads prefer AAC audio
   so the resulting mp4 plays everywhere
-- Download queue (up to 2 concurrent), cancel / retry, resume (`--continue`); cancelling cleans up
-  the partial files it left behind
+- Download queue (up to 2 concurrent), cancel / retry; cancelling (or a failed job) cleans up the
+  partial files it left behind
 - Audio extraction — **Best audio** keeps the source codec, or convert to opus / mp3 / m4a
 - Subtitles: pick languages (Settings, up to 2); the picker greys out languages a video doesn't offer
 - Thumbnail / metadata embedding
-- Optional cookie module (`--cookies-from-browser` or `cookies.txt`)
+- Cookie module for sign-in / age-restricted content — **Firefox** (`--cookies-from-browser`) or a
+  **cookies.txt** file; applied at fetch *and* download time (read locally, never stored). A one-time
+  disclaimer is shown before it's first enabled.
+- Clear, actionable errors (age/sign-in, geo-block, rate-limit, ffmpeg, network) with an inline
+  "Enable cookies" shortcut where relevant
 - One-click "Update yt-dlp" (`yt-dlp -U`)
 
 ## FAQ
-- **Age-restricted video won't download?** Enable the cookie module (Settings → Cookies) and pick
-  your browser. If it still fails, the site may require a PO token — see the
-  [yt-dlp wiki](https://github.com/yt-dlp/yt-dlp/wiki).
+- **Age-restricted / sign-in video won't fetch or download?** Enable the cookie module
+  (Settings → Cookies) and choose **Firefox** or a **cookies.txt** file. Chrome/Edge can't be read
+  directly (Chromium app-bound cookie encryption) — export a `cookies.txt` for those. If it still
+  fails, the site may require a PO token — see the [yt-dlp wiki](https://github.com/yt-dlp/yt-dlp/wiki).
 - **"ffmpeg not found"?** Set its path in Settings → Binaries.
 - **Cookies safe?** They are read locally and passed only to yt-dlp for the download — never stored
   or transmitted by this app. See [SECURITY.md](SECURITY.md). Prefer a secondary account.

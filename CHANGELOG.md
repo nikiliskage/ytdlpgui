@@ -16,10 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Core (Stream A):** `config.py` (JSON-persisted settings, migration-safe) and `paths.py`
   (yt-dlp/ffmpeg resolution, version detection, console-hiding subprocess helper, `-U` update).
 - **yt-dlp layer (Stream B):** `command_builder.py` (Builder), `format_fetcher.py`
-  (`-J`/`--flat-playlist` → MediaInfo + formats/playlist), `ytdlp_runner.py` (QProcess +
+  (`-J` → MediaInfo + formats; flat-playlist parsing exists but is not yet surfaced in the UI),
+  `ytdlp_runner.py` (QProcess +
   progress-template parsing with line buffering), `errors.py` (stderr → friendly AppError).
 - **Queue (Stream C):** `queue_manager.py` — up to 2 concurrent downloads (Command + State),
-  cancel/retry, playlist add-many.
+  cancel/retry. (Not wired into the UI in 0.1.0 — the main window manages its own queue;
+  playlist add-many is deferred. See `plans/features/`.)
 - **UI (Stream D):** full PySide6 UI per the design handoff — frameless window, splash with
   binary/version checks, omni-bar, media card (segmented modes, quality chips, format table),
   download dock with QPainter progress rings, queue panel, settings slide-over; dark + purple
@@ -40,7 +42,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New widget: `SubtitleChips` (single-select subtitle-language chips).
 - Settings "About" section: app name + version, short description, author credit (nikiliskage),
   and a link to the yt-dlp project with a "not affiliated" note.
-- 165 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).
+- **Cookies for age-restricted / sign-in content (end-to-end):** cookies are applied at the
+  metadata fetch (`yt-dlp -J`), not only the download, so restricted videos can actually be read.
+  The cookie source is **Firefox** (`--cookies-from-browser`) or a **cookies.txt** file
+  (Settings → Cookies). Chrome/Edge are not offered as direct sources — their app-bound cookie
+  encryption can't be decrypted by third-party tools (export a cookies.txt instead); the default
+  browser is Firefox.
+- One-time cookie **disclaimer / consent** dialog before the module is first enabled.
+- Fetch can be **cancelled**, **times out** after 90 s, and reports a binary-start failure instead
+  of spinning forever.
+- 179 unit/UI tests; ruff + mypy clean; app launches and resolves binaries (smoke-verified).
 
 ### Changed
 - Video downloads now prefer AAC (m4a) audio so the merged mp4 plays in all players (avoids the
@@ -58,6 +69,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   chip already chooses the format, and the setting was always overridden by it.
 - A fixed Fusion dark theme/palette is applied app-wide so the UI no longer follows the OS
   light/dark setting (native window chrome and disabled controls stay dark).
+- Downloads always pass `--no-playlist`, so a `...&list=` URL (e.g. Watch Later) downloads only the
+  selected video instead of the whole playlist.
+- Fetch errors are clearer and actionable (age/bot/members → cookies, geo-block, HTTP 429
+  rate-limit, ffmpeg-missing, network), shown on two lines with an inline **Enable cookies** action;
+  the media-card "needs cookies" prompt is hidden when the cookie module is already on.
 
 ### Fixed
 - Cancelling (or a failed job) now deletes that job's partial files (`.part`, `.ytdl`, fragments)
@@ -73,3 +89,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file to embed into).
 - The "Update yt-dlp" button now actually runs `yt-dlp -U` in the background and reports the result
   inline (up to date / updated / failed) — previously it was wired to nothing.
+- A non-object (`null`) `yt-dlp -J` response no longer crashes the fetch — it surfaces the real
+  error instead of raising.
