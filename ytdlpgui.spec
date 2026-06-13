@@ -17,6 +17,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ("app/resources/theme.qss", "app/resources"),
+        ("app/resources/icon.ico", "app/resources"),
     ],
     hiddenimports=[],
     hookspath=[],

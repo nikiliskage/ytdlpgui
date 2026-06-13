@@ -7,9 +7,11 @@ real :class:`FormatFetcher` and :class:`YtDlpRunner` factory injected.
 
 from __future__ import annotations
 
+import contextlib
 import sys
+from pathlib import Path
 
-from PySide6.QtGui import QColor, QGuiApplication, QPalette
+from PySide6.QtGui import QColor, QGuiApplication, QIcon, QPalette
 from PySide6.QtWidgets import QApplication
 
 from app.core import paths
@@ -77,6 +79,24 @@ def _apply_static_dark_theme(app: QApplication) -> None:
     app.setPalette(pal)
 
 
+def _apply_app_icon(app: QApplication) -> None:
+    """Set the running app's icon (taskbar + windows).
+
+    The PyInstaller ``icon=`` only sets the .exe file icon; the taskbar entry of
+    the *running* process uses the window icon. On Windows we also claim an
+    explicit AppUserModelID so the taskbar shows our icon instead of grouping
+    under the host (python/pythonw) default.
+    """
+    icon_path = Path(__file__).parent / "resources" / "icon.ico"
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
+    if sys.platform == "win32":
+        with contextlib.suppress(Exception):
+            import ctypes
+
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ytdlpgui.app")
+
+
 def _center(widget: MainWindow | Splash) -> None:
     screen = QGuiApplication.primaryScreen()
     if screen is None:
@@ -90,6 +110,7 @@ def _center(widget: MainWindow | Splash) -> None:
 def main() -> int:
     app = QApplication(sys.argv)
     _apply_static_dark_theme(app)
+    _apply_app_icon(app)
     config = Config()
     # Apply the theme app-wide so every top-level widget (splash included) is
     # styled — a stylesheet set only on the main window would not reach the splash.
