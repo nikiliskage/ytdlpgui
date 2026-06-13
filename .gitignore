@@ -30,5 +30,8 @@ Thumbs.db
 # Local config / runtime
 *.log
 
+# MkDocs build output (the site source itself IS tracked)
+site/
+
 # Planning & design docs (kept local, not published)
 plans/

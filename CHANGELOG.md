@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   title-bar logo via `tools/make_icon.py`.
 - Project scaffolding: core contracts layer (`app/core/contracts.py`).
 - Tooling: pytest + pytest-qt, ruff, mypy, GitHub Actions CI (Windows), shared test
-  fixtures/mocks, project documentation (README, SECURITY, ARCHITECTURE).
+  fixtures/mocks, project documentation (README, SECURITY, ARCHITECTURE), and a
+  Material for MkDocs documentation site (`docs/`, `mkdocs.yml`).
 - **Core (Stream A):** `config.py` (JSON-persisted settings, migration-safe) and `paths.py`
   (yt-dlp/ffmpeg resolution, version detection, console-hiding subprocess helper, `-U` update).
 - **yt-dlp layer (Stream B):** `command_builder.py` (Builder), `format_fetcher.py`

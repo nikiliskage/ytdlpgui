@@ -46,5 +46,7 @@ tests/                 # pytest (unit / integration[@network] / ui[pytest-qt]) +
 ## Key invariants
 - `contracts.py` is the frozen interface layer; modules depend on it, not on each other.
 - Binaries are user-provided; subprocess calls hide the console window on Windows.
-- Cancel preserves `.part`; retry resumes via `--continue`.
+- Cancel/failure deletes that job's partial files (`.part`/`.ytdl`/fragments), scoped per job.
+  (`--continue` is passed but has no effect on retry today, since partials are removed — true
+  resume is deferred; see `plans/features/resumable-downloads.md`.)
 - Errors are inline bands, never modal dialogs.

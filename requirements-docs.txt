@@ -1,0 +1,2 @@
+# Documentation site (Material for MkDocs)
+mkdocs-material>=9.5

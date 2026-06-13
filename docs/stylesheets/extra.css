@@ -1,0 +1,173 @@
+/* yt-dlp GUI docs — purple theme matching the app (tokens from the app's design) */
+
+:root {
+  --ytg-accent: #a855f7;
+  --ytg-accent-hover: #b974ff;
+  --ytg-accent-deep: #7437b8;
+}
+
+/* Accent / primary color overrides for the "custom" palette */
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color: #a855f7;
+  --md-primary-fg-color--light: #b974ff;
+  --md-primary-fg-color--dark: #7437b8;
+}
+[data-md-color-accent="custom"] {
+  --md-accent-fg-color: #b974ff;
+  --md-accent-fg-color--transparent: rgba(168, 85, 247, 0.1);
+}
+
+/* Dark scheme — align with the app's deep background */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #121216;
+  --md-default-bg-color--light: #1a1a1f;
+  --md-code-bg-color: #1c1c22;
+  --md-typeset-a-color: #b974ff;
+}
+[data-md-color-scheme="slate"] .md-header {
+  background: linear-gradient(180deg, #1e1e24, #16161b);
+}
+[data-md-color-scheme="slate"] .md-tabs {
+  background: #16161b;
+}
+
+/* ---------- Hero ---------- */
+.ytg-hero {
+  text-align: center;
+  padding: 3.5rem 1rem 2.5rem;
+}
+.ytg-hero img.ytg-logo {
+  width: 84px;
+  height: 84px;
+  filter: drop-shadow(0 8px 28px rgba(168, 85, 247, 0.35));
+}
+.ytg-hero h1 {
+  font-size: 2.6rem;
+  font-weight: 800;
+  margin: 1rem 0 0.4rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #b974ff, #a855f7 55%, #7437b8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ytg-hero p.ytg-tagline {
+  max-width: 680px;
+  margin: 0 auto 1.6rem;
+  font-size: 1.05rem;
+  color: var(--md-default-fg-color--light);
+}
+.ytg-badge {
+  display: inline-block;
+  margin-bottom: 1.2rem;
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ytg-accent-hover);
+  background: rgba(168, 85, 247, 0.14);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+/* CTA buttons */
+.ytg-cta {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.md-typeset .ytg-cta .md-button {
+  border-radius: 10px;
+  font-weight: 600;
+}
+.md-typeset .ytg-cta .md-button--primary {
+  background: var(--ytg-accent);
+  border-color: var(--ytg-accent);
+  color: #fff;
+}
+.md-typeset .ytg-cta .md-button--primary:hover {
+  background: var(--ytg-accent-hover);
+  border-color: var(--ytg-accent-hover);
+}
+
+/* ---------- Feature cards ---------- */
+/* Full-bleed wrapper: spans the whole viewport so the grid can be centered on
+   the page (equal left/right margins), independent of the narrow content column. */
+.ytg-features {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  display: flex;
+  justify-content: center;
+  padding: 0 1rem;
+}
+.ytg-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 2rem 0;
+  width: min(1000px, 100%);
+}
+@media (max-width: 720px) {
+  .ytg-grid { grid-template-columns: 1fr; }
+}
+.ytg-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 12px;
+  padding: 1.3rem 1.4rem;
+  background: var(--md-default-bg-color--light, rgba(255, 255, 255, 0.02));
+  transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+.ytg-card:hover {
+  border-color: var(--ytg-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(168, 85, 247, 0.12);
+}
+.ytg-card .ytg-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 1.4rem;
+  color: var(--ytg-accent-hover);
+  background: rgba(168, 85, 247, 0.14);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+.ytg-card .ytg-icon svg { width: 1.4rem; height: 1.4rem; fill: currentColor; }
+.ytg-card .ytg-body { flex: 1 1 auto; min-width: 0; }
+.ytg-card h3 {
+  margin: 0.1rem 0 0.35rem;
+  font-size: 1.05rem;
+}
+.ytg-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--md-default-fg-color--light);
+}
+
+/* Section heading centered */
+.ytg-section-title {
+  text-align: center;
+  margin-top: 2.5rem;
+}
+
+/* ---------- Subtle page transition ---------- */
+/* Re-runs on each instant-navigation content swap. */
+@keyframes ytg-page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.md-content {
+  animation: ytg-page-in 0.28s cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-content { animation: none; }
+}
