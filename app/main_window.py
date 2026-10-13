@@ -578,11 +578,12 @@ class MainWindow(QWidget):
         self._clear_jobs(c.JobState.COMPLETED)
 
     def _clear_failed(self) -> None:
-        self._clear_jobs(c.JobState.FAILED)
+        # Canceled jobs didn't download either, so they go too.
+        self._clear_jobs(c.JobState.FAILED, c.JobState.CANCELED)
 
-    def _clear_jobs(self, state: c.JobState) -> None:
-        """Drop every job in *state* from the dock and the queue."""
-        for job_id in self.dock.job_ids(state):
+    def _clear_jobs(self, *states: c.JobState) -> None:
+        """Drop every job in any of *states* from the dock and the queue."""
+        for job_id in [j for state in states for j in self.dock.job_ids(state)]:
             self.dock.remove_item(job_id)
             self.queue_panel.remove_row(job_id)
             self._job_options.pop(job_id, None)

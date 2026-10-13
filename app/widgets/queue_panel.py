@@ -303,8 +303,13 @@ class QueuePanel(QWidget):
         self.retry_failed_btn = self._head_btn("Retry failed", self.retry_failed.emit)
         self.clear_failed_btn = self._head_btn("Clear failed", self.clear_failed.emit)
         self.clear_completed_btn = self._head_btn("Clear completed", self.clear_completed.emit)
+        self.clear_failed_btn.setToolTip("Remove failed and canceled downloads")
+        # Bulk actions sit in their own row so they can be spaced wider than the title.
+        actions = QHBoxLayout()
+        actions.setSpacing(22)
         for btn in (self.retry_failed_btn, self.clear_failed_btn, self.clear_completed_btn):
-            head.addWidget(btn)
+            actions.addWidget(btn)
+        head.addLayout(actions)
         layout.addWidget(self._head)
 
         # Rows live in a scroll area so a long queue scrolls instead of the

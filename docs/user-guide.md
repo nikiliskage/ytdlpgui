@@ -42,7 +42,8 @@ The media card has three modes:
   retry downloads again from the start.)
 - Failed downloads show yt-dlp's actual error line (full raw error on hover).
 - The queue header has bulk actions: **Retry failed** (re-queue every failed job — e.g. a
-  playlist's temporary HTTP 403s), **Clear failed** and **Clear completed**.
+  playlist's temporary HTTP 403s), **Clear failed** (failed and canceled jobs) and
+  **Clear completed**.
 - **Rename** (pencil icon on a finished job) edits the file name in place — **Enter** saves,
   **Esc** cancels. The extension is kept, invalid characters are replaced, and subtitle /
   thumbnail files with the same name are renamed too. If the name is taken, nothing is renamed
