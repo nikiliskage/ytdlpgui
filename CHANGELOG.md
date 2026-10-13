@@ -19,12 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ISCC.exe` itself (PATH, registry incl. per-user Inno Setup installs, default folders) and
   passes the version from `app/__init__.py` to the installer script (`/DMyAppVersion`).
 
+- **deno support** (Settings → Binaries, or `deno.exe` next to the app). yt-dlp needs a
+  JavaScript runtime to solve YouTube's challenge; without one every YouTube download failed
+  with HTTP 403. The path is passed as `--js-runtimes deno:<path>` to fetches and downloads, and
+  the splash checks for it. A 403 now explains this instead of saying "Network problem".
+- Dock items: right-click for **Rename…** / **Open folder** / **Show in queue**.
+
 ### Changed
 - yt-dlp / ffmpeg are looked up **only** in Settings → Binaries and the app's own (install)
   folder. `C:\yt-dlp` and PATH are no longer searched; a missing yt-dlp now fails the fetch /
   download with a clear message instead of trying whatever `yt-dlp` is on PATH.
 
 ### Fixed
+- A long queue (e.g. a whole playlist) no longer widens the window past the screen: dock items
+  scroll sideways (mouse wheel), and the download that just started is scrolled into view.
+- A subtitle-only download for a video without subtitles in that language is now **failed**
+  ("No subtitles in en for this video.") instead of "done" with nothing on disk; the playlist
+  card warns about this in Subtitle mode.
 - A `%` in an output folder name (e.g. a playlist called "100% Hits") no longer breaks the
   yt-dlp output template.
 - The yt-dlp / ffmpeg paths set in Settings → Binaries are now used for fetching and

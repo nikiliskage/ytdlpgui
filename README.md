@@ -27,15 +27,17 @@ avoids antivirus/SmartScreen false positives and ffmpeg licensing concerns):
 
 - **yt-dlp.exe** — https://github.com/yt-dlp/yt-dlp/releases
 - **ffmpeg.exe** — https://www.gyan.dev/ffmpeg/builds/ (needed for merging video+audio and audio conversion)
+- **deno.exe** — https://github.com/denoland/deno/releases/latest (`deno-x86_64-pc-windows-msvc.zip`). yt-dlp needs a
+  JavaScript runtime for **YouTube**: without it, downloads fail with *HTTP 403 Forbidden*.
 
-Put both **next to the app** (the install folder), or point to them in **Settings → Binaries**.
-Those are the only two places the app looks — it never picks up a yt-dlp/ffmpeg from your PATH or
-another folder. (In a source checkout, the repo root counts as the app's folder.)
+Put them **next to the app** (the install folder), or point to them in **Settings → Binaries**.
+Those are the only two places the app looks — it never picks up a yt-dlp/ffmpeg/deno from your
+PATH or another folder. (In a source checkout, the repo root counts as the app's folder.)
 
 ## Install (from source, during development)
 ```powershell
 pip install -r requirements-dev.txt
-# put yt-dlp.exe and ffmpeg.exe in the repo root (or set them later in Settings → Binaries)
+# put yt-dlp.exe, ffmpeg.exe and deno.exe in the repo root (or set them in Settings → Binaries)
 python main.py
 ```
 Checks (same as CI): `ruff check . ; ruff format --check . ; mypy app ; pytest -m "not network"`.
@@ -83,6 +85,8 @@ powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1
   (Settings → Cookies) and choose **Firefox** or a **cookies.txt** file. Chrome/Edge can't be read
   directly (Chromium app-bound cookie encryption) — export a `cookies.txt` for those. If it still
   fails, the site may require a PO token — see the [yt-dlp wiki](https://github.com/yt-dlp/yt-dlp/wiki).
+- **YouTube downloads fail with "HTTP 403"?** Put `deno.exe` next to the app (see Requirements)
+  and click **Update yt-dlp**. Occasional 403s are temporary — Retry.
 - **"yt-dlp not found" / "ffmpeg not found"?** Put the `.exe` next to the app (the install folder),
   or set its path in Settings → Binaries. The app does not look in your PATH or in `C:\yt-dlp`.
 - **How do I download only some videos of a playlist?** Paste the playlist link and untick the ones

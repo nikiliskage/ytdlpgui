@@ -20,7 +20,7 @@ Because this project is open source, you can verify the above in the code (searc
 `--cookies-from-browser` / `--cookies`).
 
 ## Binaries
-`yt-dlp.exe` and `ffmpeg.exe` are **not bundled**; you supply them from their official sources.
+`yt-dlp.exe`, `ffmpeg.exe` and `deno.exe` are **not bundled**; you supply them from their official sources.
 The app only executes the binaries you point it to.
 
 ## Reporting an issue
