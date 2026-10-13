@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.core import contracts as c
+from app.core.filenames import rename_output
 from app.ui_state import UiState, match_subtitle_code
 from app.widgets.dock import Dock
 from app.widgets.error_band import ErrorBand
@@ -85,6 +86,8 @@ class MainWindow(QWidget):
         self._pending: list[tuple[str, c.DownloadOptions]] = []
         self._running: set[str] = set()
         self._job_options: dict[str, c.DownloadOptions] = {}
+        # Final file(s) of each COMPLETED job (from the runner), for Rename.
+        self._job_outputs: dict[str, list[Path]] = {}
 
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
@@ -284,6 +287,7 @@ class MainWindow(QWidget):
             row.remove.connect(self._remove_job)
             row.cancel.connect(self._cancel_job)
             row.retry.connect(self._retry_job)
+            row.rename.connect(self._rename_job)
         self._pending.append((job_id, options))
         if self.queue_panel.is_open():
             self._layout_overlays()
@@ -330,6 +334,7 @@ class MainWindow(QWidget):
             self._running.discard(job_id)
         self._runners.pop(job_id, None)
         self._job_options.pop(job_id, None)
+        self._job_outputs.pop(job_id, None)
         self.dock.remove_item(job_id)
         self.queue_panel.remove_row(job_id)
         if not self.queue_panel.rows():
@@ -411,21 +416,52 @@ class MainWindow(QWidget):
             row.update_progress(progress)
 
     def _on_finished(self, job_id: str, state: c.JobState, error: c.AppError | None) -> None:
+        runner = self._runners.get(job_id)
+        outputs = runner.output_files() if runner is not None else []
+        if state == c.JobState.COMPLETED:
+            self._job_outputs[job_id] = outputs
         self.dock.set_state(job_id, state)
         row = self.queue_panel.row(job_id)
         if row is not None:
             msg = error.user_message if error else ""
             detail = error.raw if error else ""
             row.set_state(state, msg, detail)
+            # Rename needs exactly one known file (not e.g. two subtitle files).
+            single = len(outputs) == 1 and state == c.JobState.COMPLETED
+            row.set_output_name(outputs[0].stem if single else None)
         self._running.discard(job_id)
         self._runners.pop(job_id, None)
         self._pump()
+
+    def _rename_job(self, job_id: str, new_name: str) -> None:
+        """Rename a finished download (and its subtitle/thumbnail sidecars)."""
+        row = self.queue_panel.row(job_id)
+        outputs = self._job_outputs.get(job_id) or []
+        if row is None or len(outputs) != 1:
+            return
+        try:
+            new_path = rename_output(outputs[0], new_name)
+        except FileExistsError as exc:
+            row.show_note(f"“{Path(str(exc)).name}” already exists.", error=True)
+            return
+        except FileNotFoundError:
+            row.show_note("The file was moved or deleted.", error=True)
+            row.set_output_name(None)
+            return
+        except (OSError, ValueError) as exc:
+            row.show_note(f"Couldn't rename: {exc}", error=True)
+            return
+        self._job_outputs[job_id] = [new_path]
+        row.set_output_name(new_path.stem)
+        row.set_title(new_path.stem)
+        row.show_note(f"renamed to {new_path.name}")
 
     def _clear_completed(self) -> None:
         for job_id in self.dock.job_ids(c.JobState.COMPLETED):
             self.dock.remove_item(job_id)
             self.queue_panel.remove_row(job_id)
             self._job_options.pop(job_id, None)
+            self._job_outputs.pop(job_id, None)
         if not self.queue_panel.rows():
             self._open_queue(False)
 

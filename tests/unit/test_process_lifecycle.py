@@ -146,3 +146,40 @@ def test_fetcher_reports_missing_ytdlp(qtbot, tmp_path: Path, monkeypatch) -> No
     fetcher.fetch_formats("https://x/v", lambda m, f: None, errors.append)
     qtbot.waitUntil(lambda: bool(errors), timeout=2000)
     assert "not found" in errors[0].user_message
+
+
+# ---------------------------------------------------------------------------
+# Final output path (for Rename)
+# ---------------------------------------------------------------------------
+
+
+def test_output_files_read_from_print_file(tmp_path: Path) -> None:
+    final = tmp_path / "Şarkı.mp4"
+    final.write_text("x")
+    printed = tmp_path / "print.txt"
+    printed.write_text(f"{final}\r\n", encoding="utf-8")
+
+    runner = YtDlpRunner()
+    runner._print_file = str(printed)
+    assert runner._collect_outputs() == [final]
+
+
+def test_output_files_fall_back_to_last_announced_path(tmp_path: Path) -> None:
+    """No print-file entry → the last announced path that exists (the merge)."""
+    merged = tmp_path / "Clip.mp4"
+    merged.write_text("x")
+    runner = YtDlpRunner()
+    runner._scan_destination(f"[download] Destination: {tmp_path / 'Clip.f137.mp4'}")
+    runner._scan_destination(f'[Merger] Merging formats into "{merged}"')
+    assert runner._collect_outputs() == [merged]
+
+
+def test_output_files_subtitle_only_returns_every_subtitle(tmp_path: Path) -> None:
+    en = tmp_path / "Clip.en.vtt"
+    tr = tmp_path / "Clip.tr.vtt"
+    en.write_text("x")
+    tr.write_text("x")
+    runner = YtDlpRunner()
+    runner._scan_destination(f"[info] Writing video subtitles to: {en}")
+    runner._scan_destination(f"[info] Writing video subtitles to: {tr}")
+    assert runner._collect_outputs() == [en, tr]

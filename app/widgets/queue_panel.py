@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import html
+
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, Signal
+from PySide6.QtGui import QFocusEvent, QKeyEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QProgressBar,
     QPushButton,
     QScrollArea,
@@ -25,6 +29,24 @@ _STATUS_WORD = {
 }
 
 
+class _InlineEdit(QLineEdit):
+    """Line edit for in-place renaming: Enter commits, Esc / focus loss cancels."""
+
+    canceled = Signal()
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
+        if event.key() == Qt.Key.Key_Escape:
+            self.canceled.emit()
+            event.accept()  # don't let Esc also close the queue panel
+            return
+        super().keyPressEvent(event)
+
+    def focusOutEvent(self, event: QFocusEvent) -> None:  # noqa: N802
+        super().focusOutEvent(event)
+        if self.isVisible():
+            self.canceled.emit()
+
+
 class QueueRow(QWidget):
     """A single queue row: info | progress bar | actions."""
 
@@ -32,11 +54,14 @@ class QueueRow(QWidget):
     retry = Signal(str)
     open_folder = Signal(str)
     remove = Signal(str)
+    rename = Signal(str, str)  # job_id, new file name (without extension)
 
     def __init__(self, job_id: str, title: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.job_id = job_id
         self.setProperty("class", "q-row")
+        # File name (stem) of the finished download; None = not renamable.
+        self._output_name: str | None = None
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(16)
@@ -45,9 +70,15 @@ class QueueRow(QWidget):
         info.setSpacing(5)
         self._title = QLabel(title)
         self._title.setStyleSheet("font-size:13px;font-weight:500;")
+        self._name_edit = _InlineEdit()
+        self._name_edit.setObjectName("QRenameEdit")
+        self._name_edit.setVisible(False)
+        self._name_edit.returnPressed.connect(self._commit_rename)
+        self._name_edit.canceled.connect(self._end_rename)
         self._meta = QLabel("queued")
         self._meta.setStyleSheet("font-size:11px;color:#6b6b78;")
         info.addWidget(self._title)
+        info.addWidget(self._name_edit)
         info.addWidget(self._meta)
         layout.addLayout(info, 1)
 
@@ -62,10 +93,13 @@ class QueueRow(QWidget):
         actions.setSpacing(4)
         self._cancel = self._act("close", lambda: self.cancel.emit(job_id))
         self._retry = self._act("retry", lambda: self.retry.emit(job_id))
+        self._rename = self._act("edit", self.begin_rename)
+        self._rename.setToolTip("Rename file")
         self._folder = self._act("folder", lambda: self.open_folder.emit(job_id))
         self._remove = self._act("trash", lambda: self.remove.emit(job_id))
-        for a in (self._cancel, self._retry, self._folder, self._remove):
+        for a in (self._cancel, self._retry, self._rename, self._folder, self._remove):
             actions.addWidget(a)
+        self._state = c.JobState.QUEUED
         layout.addLayout(actions)
         self.set_state(c.JobState.QUEUED)
 
@@ -112,9 +146,60 @@ class QueueRow(QWidget):
         )
         if state == c.JobState.COMPLETED:
             self._bar.setValue(100)
+        self._state = state
         self._cancel.setVisible(state == c.JobState.RUNNING)
         self._retry.setVisible(state == c.JobState.FAILED)
         self._folder.setVisible(state == c.JobState.COMPLETED)
+        self._update_rename_btn()
+
+    # -- rename ---------------------------------------------------------------
+    def set_output_name(self, name: str | None) -> None:
+        """File name (no extension) of the finished download; None hides Rename."""
+        self._output_name = name
+        self._update_rename_btn()
+
+    def output_name(self) -> str | None:
+        return self._output_name
+
+    def _update_rename_btn(self) -> None:
+        self._rename.setVisible(
+            self._state == c.JobState.COMPLETED and self._output_name is not None
+        )
+
+    def begin_rename(self) -> None:
+        """Swap the title for an inline editor pre-filled with the file name."""
+        if self._output_name is None:
+            return
+        self._name_edit.setText(self._output_name)
+        self._title.setVisible(False)
+        self._name_edit.setVisible(True)
+        self._name_edit.setFocus()
+        self._name_edit.selectAll()
+
+    def is_renaming(self) -> bool:
+        return not self._name_edit.isHidden()
+
+    def _commit_rename(self) -> None:
+        new_name = self._name_edit.text().strip()
+        self._end_rename()
+        if new_name and new_name != self._output_name:
+            self.rename.emit(self.job_id, new_name)
+
+    def _end_rename(self) -> None:
+        self._name_edit.setVisible(False)
+        self._title.setVisible(True)
+
+    def set_title(self, title: str) -> None:
+        self._title.setText(title)
+
+    def show_note(self, message: str, error: bool = False) -> None:
+        """Inline status after the state word (e.g. a rename result)."""
+        word, color = _STATUS_WORD[self._state]
+        note_color = "#ff5470" if error else "#9a9aa6"
+        self._meta.setText(
+            f"<span style='color:{color};font-weight:600'>{word}</span> · "
+            f"<span style='color:{note_color}'>{html.escape(message)}</span>"
+        )
 
 
 class QueuePanel(QWidget):

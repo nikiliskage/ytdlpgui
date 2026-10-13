@@ -292,6 +292,10 @@ class IYtDlpRunner(Protocol):
         """
         ...
 
+    def output_files(self) -> list[Path]:
+        """COMPLETED bir işin diskteki son dosya(lar)ı (bilinmiyorsa boş)."""
+        ...
+
 
 #: Her kuyruk işi için yeni bir tek-iş runner üretir. MainWindow bunu
 #: enjekte alır (gerçek `YtDlpRunner` fabrikası veya test mock'u) ve N=2

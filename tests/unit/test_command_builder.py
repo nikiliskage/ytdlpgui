@@ -339,3 +339,19 @@ class TestBuilderAPI:
         args = builder.build("https://x.com")
         idx = args.index("--sub-langs")
         assert args[idx + 1] == "en,fr,de"
+
+
+# ---------------------------------------------------------------------------
+# Final-path capture (rename support)
+# ---------------------------------------------------------------------------
+
+
+def test_print_file_adds_print_to_file_after_move() -> None:
+    args = build_command(_make_opts(), print_file="C:/tmp/50%/out.txt")
+    idx = args.index("--print-to-file")
+    assert args[idx + 1 : idx + 3] == ["after_move:filepath", "C:/tmp/50%%/out.txt"]
+    assert args.index("--print-to-file") < args.index("--")
+
+
+def test_no_print_file_by_default() -> None:
+    assert "--print-to-file" not in build_command(_make_opts())

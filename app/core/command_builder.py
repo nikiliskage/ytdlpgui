@@ -42,6 +42,11 @@ _PROGRESS_TEMPLATE = (
 )
 
 
+def _escape_template(literal: str) -> str:
+    """Escape a literal path for use inside a yt-dlp output template."""
+    return literal.replace("%", "%%")
+
+
 def _video_selector(cap: str = "") -> str:
     """Format selector preferring AAC (m4a) audio so the merged mp4 stays playable.
 
@@ -109,6 +114,15 @@ class YtDlpCommandBuilder:
         """Set output path template."""
         output_path = str(directory / template)
         self._add("-o", output_path)
+        return self
+
+    def print_final_path(self, print_file: str) -> YtDlpCommandBuilder:
+        """Append each finished file's final path to *print_file*.
+
+        Unlike ``--print``, ``--print-to-file`` does not imply ``--quiet``, so the
+        progress and ``Destination:`` lines the runner parses keep coming.
+        """
+        self._add("--print-to-file", "after_move:filepath", _escape_template(print_file))
         return self
 
     def format_video(
@@ -203,15 +217,19 @@ def build_command(
     options: DownloadOptions,
     ytdlp_path: str = "yt-dlp",
     ffmpeg_path: str = "",
+    print_file: str = "",
 ) -> list[str]:
     """Build the yt-dlp command list for *options*.
 
     This is a thin wrapper around :class:`YtDlpCommandBuilder` that maps
-    all fields of ``DownloadOptions`` to builder calls.
+    all fields of ``DownloadOptions`` to builder calls. ``print_file``, if set,
+    receives the final path of each downloaded file (used for renaming).
     """
     builder = YtDlpCommandBuilder()
     builder.base(ytdlp_path, ffmpeg_path)
     builder.common(options.concurrent_fragments)
+    if print_file:
+        builder.print_final_path(print_file)
 
     if options.mode == DownloadMode.AUDIO:
         builder.output(options.audio_dir, options.output_template)
