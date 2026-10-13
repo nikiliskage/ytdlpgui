@@ -42,6 +42,7 @@ _GLYPHS: dict[str, str] = {
     "warn": ('<path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3M8 11.6v.01" stroke-width="1.8"/>'),
     "download": '<path d="M8 2.5v7M5 7l3 3 3-3M3 13h10"/>',
     "edit": '<path d="M10.5 2.8l2.7 2.7-7.7 7.7H2.8v-2.7z"/><path d="M9 4.3l2.7 2.7"/>',
+    "list": '<path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h.01M2.5 8h.01M2.5 12h.01" />',
     "cookie": (
         '<circle cx="8" cy="8" r="5.8"/>'
         '<path d="M6 6.2v.01M9.8 7.2v.01M7 10v.01M10 10.4v.01" stroke-width="2"/>'

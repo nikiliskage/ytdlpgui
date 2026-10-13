@@ -1,6 +1,6 @@
 """Windows-safe file names and renaming of finished downloads (pure, no Qt).
 
-Used by the queue's "Rename" action.
+Shared by the queue's "Rename" action and the playlist subfolder naming.
 """
 
 from __future__ import annotations
@@ -54,6 +54,17 @@ def sanitize_filename(name: str, fallback: str = "untitled") -> str:
     if cleaned.split(".")[0].upper() in _RESERVED:
         cleaned += "_"
     return cleaned
+
+
+def playlist_item_template(index: int, total: int) -> str:
+    """yt-dlp output template that keeps playlist order: ``07 - %(title)s.%(ext)s``.
+
+    Each playlist item is downloaded as its own single-video job, so yt-dlp's
+    ``%(playlist_index)s`` is unavailable; the index is baked in instead, padded
+    to the width of *total* (at least 2 digits) so names sort correctly.
+    """
+    width = max(2, len(str(max(total, index))))
+    return f"{index:0{width}d} - %(title)s.%(ext)s"
 
 
 def rename_output(path: Path, new_stem: str) -> Path:

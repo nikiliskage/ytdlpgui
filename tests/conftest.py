@@ -110,30 +110,35 @@ class MockFetcher:
     formats: list[c.FormatInfo] = field(
         default_factory=lambda: [c.FormatInfo(format_id="22", ext="mp4", resolution="1280x720")]
     )
-    playlist: list[c.PlaylistItem] = field(default_factory=list)
+    playlist: c.PlaylistInfo | None = None  # fetch_formats returns this playlist if set
     fail_with: c.AppError | None = None
+    expanded: list[str] = field(default_factory=list)  # URLs passed to expand_playlist
 
     def fetch_formats(
         self,
         url: str,
         on_done: Callable[[c.MediaInfo, list[c.FormatInfo]], None],
         on_error: Callable[[c.AppError], None],
+        on_playlist: Callable[[c.PlaylistInfo], None] | None = None,
     ) -> None:
         if self.fail_with is not None:
             on_error(self.fail_with)
+        elif self.playlist is not None and on_playlist is not None:
+            on_playlist(self.playlist)
         else:
             on_done(self.media, self.formats)
 
     def expand_playlist(
         self,
         url: str,
-        on_done: Callable[[list[c.PlaylistItem]], None],
+        on_done: Callable[[c.PlaylistInfo], None],
         on_error: Callable[[c.AppError], None],
     ) -> None:
+        self.expanded.append(url)
         if self.fail_with is not None:
             on_error(self.fail_with)
         else:
-            on_done(self.playlist)
+            on_done(self.playlist or c.PlaylistInfo(id="", title="Playlist"))
 
 
 @pytest.fixture

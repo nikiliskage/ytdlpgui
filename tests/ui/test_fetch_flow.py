@@ -10,9 +10,9 @@ def test_fetch_calls_injected_fetcher(window, mock_fetcher) -> None:  # type: ig
     calls: list[str] = []
     original = mock_fetcher.fetch_formats
 
-    def spy(url, on_done, on_error):  # type: ignore[no-untyped-def]
+    def spy(url, on_done, on_error, on_playlist=None):  # type: ignore[no-untyped-def]
         calls.append(url)
-        original(url, on_done, on_error)
+        original(url, on_done, on_error, on_playlist)
 
     mock_fetcher.fetch_formats = spy  # type: ignore[method-assign]
     window.omni.input.setText("https://youtube.com/watch?v=abc")

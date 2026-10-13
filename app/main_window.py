@@ -21,13 +21,14 @@ from PySide6.QtWidgets import (
 )
 
 from app.core import contracts as c
-from app.core.filenames import rename_output
-from app.ui_state import UiState, match_subtitle_code
+from app.core.filenames import playlist_item_template, rename_output
+from app.ui_state import UiState, match_subtitle_code, playlist_url
 from app.widgets.dock import Dock
 from app.widgets.error_band import ErrorBand
 from app.widgets.fly_to_dock import fly_to_dock
 from app.widgets.media_card import MediaCard
 from app.widgets.omni_bar import OmniBar
+from app.widgets.playlist_card import PlaylistCard
 from app.widgets.queue_panel import QueuePanel
 from app.widgets.settings_panel import SettingsPanel
 from app.widgets.skeleton import Skeleton
@@ -161,7 +162,14 @@ class MainWindow(QWidget):
         self.media_card.setVisible(False)
         self.media_card.add_to_queue.connect(self._on_add_to_queue)
         self.media_card.enable_cookies.connect(self._on_enable_cookies)
+        self.media_card.open_playlist.connect(self._on_open_playlist)
         self._content_layout.addWidget(self.media_card, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        self.playlist_card = PlaylistCard(self._reduced_motion, config=self._config)
+        self.playlist_card.setFixedWidth(_COLUMN_WIDTH)
+        self.playlist_card.setVisible(False)
+        self.playlist_card.add_selected.connect(self._on_add_playlist)
+        self._content_layout.addWidget(self.playlist_card, 0, Qt.AlignmentFlag.AlignHCenter)
         self._content_layout.addStretch(1)
 
         self._scroll.setWidget(content)
@@ -197,15 +205,22 @@ class MainWindow(QWidget):
             self.showMaximized()
 
     # -- fetch flow -----------------------------------------------------------
-    def _on_fetch(self, url: str) -> None:
-        self.state.url = url
+    def _show_loading(self) -> None:
         self.state.phase = c.AppPhase.FETCHING
         self.omni.set_fetching(True)
         self.omni.set_docked(True)
         self.error_band.setVisible(False)
         self.media_card.setVisible(False)
+        self.playlist_card.setVisible(False)
         self.skeleton.setVisible(True)
-        self._fetcher.fetch_formats(url, self._on_fetch_done, self._on_fetch_error)
+
+    def _on_fetch(self, url: str) -> None:
+        self.state.url = url
+        self.state.playlist = None
+        self._show_loading()
+        self._fetcher.fetch_formats(
+            url, self._on_fetch_done, self._on_fetch_error, on_playlist=self._on_playlist_loaded
+        )
 
     def _on_fetch_done(self, media: c.MediaInfo, formats: list[c.FormatInfo]) -> None:
         self.state.phase = c.AppPhase.LOADED
@@ -217,12 +232,37 @@ class MainWindow(QWidget):
         self.media_card.set_media(media, formats)
         self.media_card.setVisible(True)
 
+    def _on_open_playlist(self) -> None:
+        """Media card's "Open playlist": expand the playlist this video is in."""
+        url = playlist_url(self.state.url)
+        if url is None:
+            return
+        self._show_loading()
+        self._fetcher.expand_playlist(url, self._on_playlist_loaded, self._on_fetch_error)
+
+    def _on_playlist_loaded(self, playlist: c.PlaylistInfo) -> None:
+        self.omni.set_fetching(False)
+        self.skeleton.setVisible(False)
+        self.media_card.setVisible(False)
+        if not playlist.items:
+            self.state.phase = c.AppPhase.EMPTY
+            self.error_band.set_action("")
+            self.error_band.set_message("This playlist has no downloadable videos.")
+            self.error_band.setVisible(True)
+            return
+        self.state.phase = c.AppPhase.LOADED
+        self.state.playlist = playlist
+        self.error_band.setVisible(False)
+        self.playlist_card.set_playlist(playlist)
+        self.playlist_card.setVisible(True)
+
     def _on_fetch_error(self, error: c.AppError) -> None:
         self.state.phase = c.AppPhase.EMPTY
         self.state.error = error.user_message
         self.omni.set_fetching(False)
         self.skeleton.setVisible(False)
         self.media_card.setVisible(False)
+        self.playlist_card.setVisible(False)
         message = error.user_message or error.raw or "Unknown error."
         # Errors whose remedy is cookies: keep the specific reason, then tailor the
         # guidance to whether the cookie module is already on, and offer a one-click
@@ -251,6 +291,7 @@ class MainWindow(QWidget):
         self.omni.set_fetching(False)
         self.skeleton.setVisible(False)
         self.media_card.setVisible(False)
+        self.playlist_card.setVisible(False)
         self.error_band.setVisible(False)
 
     def _retry(self) -> None:
@@ -260,24 +301,54 @@ class MainWindow(QWidget):
     # -- queue ----------------------------------------------------------------
     def _on_add_to_queue(self) -> None:
         media = self.state.media
-        title = media.title if media else "Download"
+        self._fly_from(self.media_card.queue_btn)
+        self._enqueue(media.title if media else "Download", self._build_options())
+        self._after_enqueue()
+
+    def _on_add_playlist(self) -> None:
+        """Queue each checked playlist video as its own job.
+
+        Files go to ``<dir>\\<playlist title>\\NN - <title>.<ext>``; the number is
+        the video's position in the playlist, so the folder sorts in order.
+        """
+        playlist = self.state.playlist
+        items = self.playlist_card.selected_items()
+        if playlist is None or not items:
+            return
+        card = self.playlist_card
+        subfolder = card.subfolder()
+        total = max(item.index for item in playlist.items)
+        self._fly_from(card.queue_btn)
+        for item in items:
+            opts = self._options_for(
+                url=item.url,
+                mode=card.mode(),
+                quality=card.quality(),
+                fmt=None,
+                selected_subs=card.subs(),
+                sub_codes=[],  # per-video subtitle list is unknown for playlists
+            )
+            opts.video_dir = opts.video_dir / subfolder
+            opts.audio_dir = opts.audio_dir / subfolder
+            opts.output_template = playlist_item_template(item.index, total)
+            self._enqueue(item.title, opts)
+        self._after_enqueue()
+
+    def _fly_from(self, btn: QWidget) -> None:
+        """Fly-to-dock animation from *btn* to the dock chevron."""
+        if self._reduced_motion:
+            return
+        host = self._root
+        start = host.mapFromGlobal(btn.mapToGlobal(btn.rect().center()))
+        end_x, end_y = self.dock.queue_btn_geometry_center()
+        end = host.mapFromGlobal(self.dock.mapToGlobal(QPoint(0, 0))) + QPoint(end_x, end_y - 86)
+        fly_to_dock(host, start, QPoint(end.x(), end.y()), self._reduced_motion)
+
+    def _enqueue(self, title: str, options: c.DownloadOptions) -> str:
+        """Add a QUEUED job (dock item + queue row); _pump starts it when a slot frees."""
         job_id = f"job-{next(self._ids)}"
         self.dock.add_item(job_id, title)
         self.queue_panel.add_row(job_id, title)
-
-        # fly-to-dock from the Add-to-queue button to the dock chevron
-        host = self._root
-        btn = self.media_card.queue_btn
-        start_global = btn.mapToGlobal(btn.rect().center())
-        start = host.mapFromGlobal(start_global)
-        end_x, end_y = self.dock.queue_btn_geometry_center()
-        end_global = self.dock.mapToGlobal(QPoint(0, 0))
-        end = host.mapFromGlobal(end_global) + QPoint(end_x, end_y - 86)
-        if not self._reduced_motion:
-            fly_to_dock(host, start, QPoint(end.x(), end.y()), self._reduced_motion)
-
-        # enqueue (QUEUED); _pump starts it when a concurrency slot is free
-        options = self._build_options()
         self._job_options[job_id] = options
         self.dock.set_state(job_id, c.JobState.QUEUED)
         row = self.queue_panel.row(job_id)
@@ -289,6 +360,9 @@ class MainWindow(QWidget):
             row.retry.connect(self._retry_job)
             row.rename.connect(self._rename_job)
         self._pending.append((job_id, options))
+        return job_id
+
+    def _after_enqueue(self) -> None:
         if self.queue_panel.is_open():
             self._layout_overlays()
         self._pump()
@@ -367,46 +441,52 @@ class MainWindow(QWidget):
         self._pump()
 
     def _build_options(self) -> c.DownloadOptions:
-        fmt = self.state.selected_format
-        preset = None if fmt else self.state.quality
+        """Options for the single video shown in the media card."""
+        media = self.state.media
+        return self._options_for(
+            url=self.state.url,
+            mode=self.state.mode,
+            quality=self.state.quality,
+            fmt=self.state.selected_format,
+            selected_subs=self.state.selected_subs,
+            sub_codes=media.subtitle_langs if media is not None else [],
+        )
+
+    def _options_for(
+        self,
+        url: str,
+        mode: c.DownloadMode,
+        quality: str | None,
+        fmt: str | None,
+        selected_subs: list[str],
+        sub_codes: list[str],
+    ) -> c.DownloadOptions:
+        """DownloadOptions from config + an on-screen selection (media or playlist card)."""
+        preset = None if fmt else quality
         # Real Config provides as_download_options (applies output dirs, cookies,
         # audio format, embed flags, etc.). Test mocks may not — fall back then.
         builder = getattr(self._config, "as_download_options", None)
-        if callable(builder):
-            opts = builder(self.state.url, self.state.mode, fmt, preset)
-            if not isinstance(opts, c.DownloadOptions):
-                opts = self._bare_options(fmt)
-        else:
-            opts = self._bare_options(fmt)
-        # In Audio mode, the media-card chip drives the audio format:
+        opts = builder(url, mode, fmt, preset) if callable(builder) else None
+        if not isinstance(opts, c.DownloadOptions):
+            opts = c.DownloadOptions(url=url, mode=mode, format_id=fmt, preset=preset)
+        # In Audio mode, the chip drives the audio format:
         #  - opus/mp3/m4a → convert to that format,
         #  - "Best audio" → keep the source codec (no lossy re-encode), so a
         #    download is never silently forced to opus.
-        if self.state.mode == c.DownloadMode.AUDIO:
-            if self.state.quality in ("opus", "mp3", "m4a"):
-                opts.audio_format = self.state.quality
-            elif self.state.quality == "bestaudio":
+        if mode == c.DownloadMode.AUDIO:
+            if quality in ("opus", "mp3", "m4a"):
+                opts.audio_format = quality
+            elif quality == "bestaudio":
                 opts.audio_format = "best"
         # In Subtitle mode, the on-screen chip (single-select) drives the
         # language; we only ever offer manual subtitles (auto-translations are
         # rate-limited by YouTube). Map the pick to the video's actual code so a
         # configured "de" downloads the video's "de-DE".
-        elif self.state.mode == c.DownloadMode.SUBTITLE and self.state.selected_subs:
-            media = self.state.media
-            codes = media.subtitle_langs if media is not None else []
+        elif mode == c.DownloadMode.SUBTITLE and selected_subs:
             opts.subtitle_langs = [
-                match_subtitle_code(lang, codes) or lang for lang in self.state.selected_subs
+                match_subtitle_code(lang, sub_codes) or lang for lang in selected_subs
             ]
             opts.write_auto_subs = False
-        return opts
-
-    def _bare_options(self, fmt: str | None) -> c.DownloadOptions:
-        opts = c.DownloadOptions(url=self.state.url, mode=self.state.mode)
-        if fmt:
-            opts.format_id = fmt
-            opts.preset = None
-        else:
-            opts.preset = self.state.quality
         return opts
 
     def _on_progress(self, job_id: str, progress: c.Progress) -> None:
@@ -479,6 +559,8 @@ class MainWindow(QWidget):
             # Settings may have changed the folder names or subtitle languages.
             self.media_card.refresh_dest()
             self.media_card.refresh_subtitles()
+            self.playlist_card.refresh_dest()
+            self.playlist_card.refresh_subtitles()
             # A raised "max concurrent downloads" should start queued jobs now.
             self._pump()
         self._layout_overlays()

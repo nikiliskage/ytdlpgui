@@ -19,21 +19,17 @@ from PySide6.QtWidgets import (
 
 from app import icons
 from app.core import contracts as c
-from app.ui_state import UiState, first_chip_id, match_subtitle_code
+from app.ui_state import (
+    UiState,
+    first_chip_id,
+    format_duration,
+    match_subtitle_code,
+    playlist_url,
+)
 from app.widgets.format_table import FormatTable
 from app.widgets.quality_chips import QualityChips
 from app.widgets.segmented_switch import SegmentedSwitch
 from app.widgets.subtitle_chips import SubtitleChips
-
-
-def _fmt_duration(seconds: int | None) -> str:
-    if seconds is None:
-        return "—"
-    h, rem = divmod(seconds, 3600)
-    m, s = divmod(rem, 60)
-    if h:
-        return f"{h}:{m:02d}:{s:02d}"
-    return f"{m}:{s:02d}"
 
 
 class _Thumb(QWidget):
@@ -76,6 +72,7 @@ class MediaCard(QWidget):
 
     add_to_queue = Signal()
     enable_cookies = Signal()
+    open_playlist = Signal()
 
     def __init__(
         self,
@@ -111,6 +108,9 @@ class MediaCard(QWidget):
         self._cookie_band = self._build_cookie_band()
         self._cookie_band.setVisible(False)
         meta.addWidget(self._cookie_band)
+        self._playlist_band = self._build_playlist_band()
+        self._playlist_band.setVisible(False)
+        meta.addWidget(self._playlist_band)
         head.addLayout(meta, 1)
         layout.addLayout(head)
 
@@ -187,6 +187,27 @@ class MediaCard(QWidget):
         row.addWidget(link)
         return band
 
+    def _build_playlist_band(self) -> QWidget:
+        band = QWidget()
+        band.setObjectName("PlaylistBand")
+        band.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        row = QHBoxLayout(band)
+        row.setContentsMargins(11, 7, 11, 7)
+        row.setSpacing(9)
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("list", "#c9b3f5", 14))
+        row.addWidget(icon)
+        row.addWidget(QLabel("This video is part of a playlist."), 1)
+        self.playlist_btn = QPushButton("Open playlist")
+        self.playlist_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.playlist_btn.clicked.connect(self.open_playlist.emit)
+        row.addWidget(self.playlist_btn)
+        return band
+
+    def has_playlist_link(self) -> bool:
+        """True while the 'part of a playlist' band is offered."""
+        return not self._playlist_band.isHidden()
+
     def _cookies_enabled(self) -> bool:
         """True if the cookie module is on (the fetch already applied cookies)."""
         if self._config is None:
@@ -226,12 +247,13 @@ class MediaCard(QWidget):
         self._state.media = media  # availability source for subtitle chips
         self._title.setText(media.title)
         channel = media.channel or "—"
-        dur = _fmt_duration(media.duration)
+        dur = format_duration(media.duration)
         self._channel.setText(f"{channel}  ·  {dur}")
         # Only nag about cookies when they aren't already on. If the cookie module
         # is enabled the fetch already used them (that's how an age-restricted video
         # loaded), so prompting "needs cookies / Enable cookies" would be illogical.
         self._cookie_band.setVisible(media.needs_cookies and not self._cookies_enabled())
+        self._playlist_band.setVisible(playlist_url(self._state.url) is not None)
         self.formats.set_formats(formats)
         self.refresh_dest()
         if self._state.mode == c.DownloadMode.SUBTITLE:
