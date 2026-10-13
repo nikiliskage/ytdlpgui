@@ -117,3 +117,32 @@ def test_handle_flat_null_reports_error_without_crashing() -> None:
     fetcher._handle_flat("null", "ERROR: Video unavailable", done.append, errors.append)
     assert not done
     assert len(errors) == 1
+
+
+# ---------------------------------------------------------------------------
+# Missing binary: no PATH fallback, a clear failure instead
+# ---------------------------------------------------------------------------
+
+
+def test_runner_fails_cleanly_when_ytdlp_missing(qtbot, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("app.core.paths.app_binary_dir", lambda: tmp_path)
+    runner = YtDlpRunner(_Cfg())
+    results: list[tuple[c.JobState, c.AppError | None]] = []
+    runner.set_callbacks(lambda _p: None, lambda _l: None, lambda s, e: results.append((s, e)))
+
+    runner.start(c.DownloadOptions(url="https://x/v", video_dir=tmp_path))
+
+    assert results == []  # reported asynchronously, like a real run
+    qtbot.waitUntil(lambda: bool(results), timeout=2000)
+    state, error = results[0]
+    assert state == c.JobState.FAILED
+    assert error is not None and "not found" in error.user_message
+
+
+def test_fetcher_reports_missing_ytdlp(qtbot, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("app.core.paths.app_binary_dir", lambda: tmp_path)
+    fetcher = FormatFetcher(_Cfg())
+    errors: list[c.AppError] = []
+    fetcher.fetch_formats("https://x/v", lambda m, f: None, errors.append)
+    qtbot.waitUntil(lambda: bool(errors), timeout=2000)
+    assert "not found" in errors[0].user_message

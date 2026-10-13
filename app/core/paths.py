@@ -1,18 +1,18 @@
 """Binary (yt-dlp / ffmpeg) location resolution for ytdlpgui (Stream A).
 
 Resolution order for both binaries:
-  1. Explicit path from config (if provided and the file exists)
+  1. Explicit path from config (Settings → Binaries; if the file exists)
   2. The application's own folder — next to the .exe when packaged (so users just
      drop yt-dlp.exe / ffmpeg.exe beside the app), or the repo root in dev
-  3. C:\\yt-dlp  (legacy well-known Windows directory)
-  4. PATH via shutil.which
+
+Nothing else is searched (no PATH, no well-known folders): the app only ever
+runs binaries the user put beside it or chose explicitly.
 
 Version detection uses no_window_kwargs() to suppress console flash on Windows.
 """
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -24,8 +24,10 @@ from app.core.contracts import BinaryStatus
 _YTDLP_DOWNLOAD_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest"
 _FFMPEG_DOWNLOAD_URL = "https://ffmpeg.org/download.html"
 
-# Legacy well-known install location on Windows (kept as a fallback).
-_YTDLP_DEFAULT_DIR = Path(r"C:\yt-dlp")
+# Shown wherever a missing yt-dlp stops the app (splash, fetch, download).
+YTDLP_NOT_FOUND_MESSAGE = (
+    "yt-dlp not found. Put yt-dlp.exe next to the app, or set it in Settings → Binaries."
+)
 
 
 def app_binary_dir() -> Path:
@@ -156,19 +158,10 @@ def _candidates(name: str, config_path: str) -> list[Path]:
     if config_path:
         candidates.append(Path(config_path))
 
-    # (b) Next to the app (the .exe folder when packaged)
+    # (b) Next to the app (the install folder when packaged)
     app_dir = app_binary_dir()
     candidates.append(app_dir / f"{name}.exe")
     candidates.append(app_dir / name)
-
-    # (c) Legacy well-known location: C:\yt-dlp\<name>.exe
-    candidates.append(_YTDLP_DEFAULT_DIR / f"{name}.exe")
-    candidates.append(_YTDLP_DEFAULT_DIR / name)
-
-    # (d) PATH
-    which_result = shutil.which(name)
-    if which_result:
-        candidates.append(Path(which_result))
     return candidates
 
 
@@ -197,7 +190,7 @@ def resolve_ytdlp(config_path: str = "") -> BinaryStatus:
             found=False,
             path=None,
             version=None,
-            message=("yt-dlp not found. Put yt-dlp.exe next to the app, or set it in Settings."),
+            message=YTDLP_NOT_FOUND_MESSAGE,
             download_url=_YTDLP_DOWNLOAD_URL,
         )
 

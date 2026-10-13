@@ -423,7 +423,7 @@ class SettingsPanel(QWidget):
 
     # -- yt-dlp self-update ---------------------------------------------------
     def _resolve_ytdlp_path(self) -> str:
-        """Locate yt-dlp: configured path → paths.resolve_ytdlp() → PATH."""
+        """Locate yt-dlp: configured path, else the one beside the app ("" if none)."""
         configured = str(self._get("ytdlp_path", "") or "")
         if configured:
             return configured
