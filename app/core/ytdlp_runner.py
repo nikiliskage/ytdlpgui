@@ -8,16 +8,16 @@ Architecture notes
   any Qt event loop.
 * ``YtDlpRunner`` maintains a stdout line-buffer so chunks split mid-line are
   handled correctly (a common QProcess pitfall).
-* ``no_window_kwargs`` is imported lazily at runtime (inside methods) so that
-  this module can be imported even when Stream A (paths.py) is not yet present.
+* Binaries are located per ``start()`` from the injected config (Settings ->
+  Binaries), without running them: no blocking ``--version`` on the GUI thread.
 """
 
 from __future__ import annotations
 
+import codecs
 import contextlib
 import glob
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -25,13 +25,16 @@ import time
 from app.core.contracts import (
     AppError,
     DownloadOptions,
+    ErrorKind,
     FinishedCallback,
+    IConfig,
     JobState,
     LogCallback,
     Progress,
     ProgressCallback,
 )
 from app.core.errors import map_stderr
+from app.core.paths import find_ffmpeg, find_ytdlp
 
 try:
     from PySide6.QtCore import QObject, QProcess, Signal
@@ -172,7 +175,7 @@ class YtDlpRunner(QObject):
         log: Signal = Signal(str)
         finished_signal: Signal = Signal(JobState, object)  # object = AppError | None
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(self, config: IConfig | None = None, parent: QObject | None = None) -> None:
         if _QT_AVAILABLE:
             super().__init__(parent)
         else:
@@ -182,10 +185,17 @@ class YtDlpRunner(QObject):
         self._on_log: LogCallback | None = None
         self._on_finished: FinishedCallback | None = None
 
+        self._config = config
         self._process: QProcess | None = None
         self._stderr_buf: str = ""
         self._line_buffer: LineBuffer = LineBuffer()
+        self._stderr_lines: LineBuffer = LineBuffer()
+        # Incremental decoders: a multi-byte UTF-8 char split across two reads
+        # must not turn into replacement characters (it would corrupt paths).
+        self._out_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        self._err_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self._canceled: bool = False
+        self._reported: bool = False
         # Output paths yt-dlp announces for this job ("Destination:"/"Merging
         # formats into"); used to delete leftover partials on cancel/failure.
         self._dest_files: set[str] = set()
@@ -209,25 +219,21 @@ class YtDlpRunner(QObject):
         """Build args and launch yt-dlp via QProcess."""
         from app.core.command_builder import build_command
 
-        ytdlp_path = self._locate_ytdlp()
-        ffmpeg_path = self._locate_ffmpeg()
-        args = build_command(options, ytdlp_path=ytdlp_path, ffmpeg_path=ffmpeg_path)
-
-        # Lazily import no_window_kwargs from Stream A (may not exist yet).
-        try:
-            from app.core.paths import no_window_kwargs
-
-            no_window_kwargs()
-        except Exception:
-            pass
-
         self._line_buffer = LineBuffer()
+        self._stderr_lines = LineBuffer()
+        self._out_decoder.reset()
+        self._err_decoder.reset()
         self._stderr_buf = ""
         self._canceled = False
+        self._reported = False
         self._dest_files = set()
 
         if not _QT_AVAILABLE:  # pragma: no cover
             return
+
+        args = build_command(
+            options, ytdlp_path=self._locate_ytdlp(), ffmpeg_path=self._locate_ffmpeg()
+        )
 
         process = QProcess(self)
         self._process = process
@@ -235,6 +241,7 @@ class YtDlpRunner(QObject):
         process.readyReadStandardOutput.connect(self._on_stdout)
         process.readyReadStandardError.connect(self._on_stderr_ready)
         process.finished.connect(self._on_process_finished)
+        process.errorOccurred.connect(self._on_process_error)
 
         program = args[0]
         arguments = args[1:]
@@ -271,24 +278,44 @@ class YtDlpRunner(QObject):
     def _on_stdout(self) -> None:
         if self._process is None:
             return
-        raw = bytes(self._process.readAllStandardOutput().data()).decode("utf-8", errors="replace")
+        raw = self._out_decoder.decode(bytes(self._process.readAllStandardOutput().data()))
         for line in self._line_buffer.feed(raw):
             self._dispatch_line(line)
 
     def _on_stderr_ready(self) -> None:
         if self._process is None:
             return
-        raw = bytes(self._process.readAllStandardError().data()).decode("utf-8", errors="replace")
+        raw = self._err_decoder.decode(bytes(self._process.readAllStandardError().data()))
         self._stderr_buf += raw
-        for line in raw.splitlines():
-            self._scan_destination(line)
-            if self._on_log:
-                self._on_log(line)
+        for line in self._stderr_lines.feed(raw):
+            self._dispatch_stderr_line(line)
+
+    def _on_process_error(self, err: object) -> None:
+        """Report a process that never started (``finished`` is not emitted then).
+
+        Without this, a wrong/missing yt-dlp path leaves the job RUNNING forever
+        and its concurrency slot is never freed. Other errors (e.g. Crashed from
+        our own kill()) are followed by ``finished`` and handled there.
+        """
+        if err != QProcess.ProcessError.FailedToStart:
+            return
+        error = AppError(
+            kind=ErrorKind.UNKNOWN,
+            user_message="yt-dlp could not be started. Check its path in Settings → Binaries.",
+            raw=self._process.errorString() if self._process is not None else "",
+        )
+        self._report(JobState.CANCELED if self._canceled else JobState.FAILED, error)
 
     def _on_process_finished(self, exit_code: int, exit_status: object) -> None:
-        # Flush any partial line still in the buffer.
+        # Flush any partial line still in the buffers.
+        for line in self._line_buffer.feed(self._out_decoder.decode(b"", final=True)):
+            self._dispatch_line(line)
         for line in self._line_buffer.flush():
             self._dispatch_line(line)
+        tail = self._err_decoder.decode(b"", final=True)
+        self._stderr_buf += tail
+        for line in self._stderr_lines.feed(tail) + self._stderr_lines.flush():
+            self._dispatch_stderr_line(line)
 
         error: AppError | None = None
         if self._canceled:
@@ -305,6 +332,13 @@ class YtDlpRunner(QObject):
         if state is not JobState.COMPLETED:
             self._cleanup_partials()
 
+        self._report(state, error)
+
+    def _report(self, state: JobState, error: AppError | None) -> None:
+        """Invoke ``on_finished`` exactly once per ``start()``."""
+        if self._reported:
+            return
+        self._reported = True
         if self._on_finished:
             self._on_finished(state, error)
 
@@ -313,6 +347,7 @@ class YtDlpRunner(QObject):
     # ------------------------------------------------------------------
 
     def _dispatch_line(self, line: str) -> None:
+        line = line.rstrip("\r")
         prog = parse_progress_line(line)
         if prog is not None:
             if self._on_progress:
@@ -320,6 +355,12 @@ class YtDlpRunner(QObject):
             return
         self._scan_destination(line)
         if line.strip() and self._on_log:
+            self._on_log(line)
+
+    def _dispatch_stderr_line(self, line: str) -> None:
+        line = line.rstrip("\r")
+        self._scan_destination(line)
+        if self._on_log:
             self._on_log(line)
 
     def _scan_destination(self, line: str) -> None:
@@ -369,30 +410,21 @@ class YtDlpRunner(QObject):
             except OSError:
                 time.sleep(0.1)
 
-    @staticmethod
-    def _locate_ytdlp() -> str:
-        """Find yt-dlp on PATH or return the bare name."""
+    def _configured(self, key: str) -> str:
+        """Binary path the user set in Settings → Binaries ("" = auto-detect)."""
+        if self._config is None:
+            return ""
         try:
-            from app.core.paths import resolve_ytdlp
-
-            result = resolve_ytdlp()
-            if result.found and result.path:
-                return str(result.path)
+            return str(self._config.get(key) or "")
         except Exception:
-            pass
-        found = shutil.which("yt-dlp")
-        return found if found else "yt-dlp"
+            return ""
 
-    @staticmethod
-    def _locate_ffmpeg() -> str:
-        """Find ffmpeg on PATH or return empty string (let yt-dlp auto-detect)."""
-        try:
-            from app.core.paths import resolve_ffmpeg
+    def _locate_ytdlp(self) -> str:
+        """Configured path → app folder → C:\\yt-dlp → PATH, else the bare name."""
+        found = find_ytdlp(self._configured("ytdlp_path"))
+        return str(found) if found else "yt-dlp"
 
-            result = resolve_ffmpeg()
-            if result.found and result.path:
-                return str(result.path)
-        except Exception:
-            pass
-        found = shutil.which("ffmpeg")
-        return found if found else ""
+    def _locate_ffmpeg(self) -> str:
+        """Same order for ffmpeg; empty string lets yt-dlp auto-detect."""
+        found = find_ffmpeg(self._configured("ffmpeg_path"))
+        return str(found) if found else ""

@@ -277,7 +277,7 @@ class IYtDlpRunner(Protocol):
         ...
 
     def cancel(self) -> None:
-        """Aktif indirmeyi iptal et (.part dosyası korunur)."""
+        """Aktif indirmeyi iptal et (bu işin .part/.ytdl dosyaları silinir)."""
         ...
 
     def set_callbacks(

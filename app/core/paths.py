@@ -148,6 +148,40 @@ def _check_binary(candidates: list[Path]) -> Path | None:
 # ---------------------------------------------------------------------------
 
 
+def _candidates(name: str, config_path: str) -> list[Path]:
+    """Search candidates for *name* in the documented resolution order."""
+    candidates: list[Path] = []
+
+    # (a) Explicit config path
+    if config_path:
+        candidates.append(Path(config_path))
+
+    # (b) Next to the app (the .exe folder when packaged)
+    app_dir = app_binary_dir()
+    candidates.append(app_dir / f"{name}.exe")
+    candidates.append(app_dir / name)
+
+    # (c) Legacy well-known location: C:\yt-dlp\<name>.exe
+    candidates.append(_YTDLP_DEFAULT_DIR / f"{name}.exe")
+    candidates.append(_YTDLP_DEFAULT_DIR / name)
+
+    # (d) PATH
+    which_result = shutil.which(name)
+    if which_result:
+        candidates.append(Path(which_result))
+    return candidates
+
+
+def find_ytdlp(config_path: str = "") -> Path | None:
+    """Locate yt-dlp without running it (cheap; safe to call on the GUI thread)."""
+    return _check_binary(_candidates("yt-dlp", config_path))
+
+
+def find_ffmpeg(config_path: str = "") -> Path | None:
+    """Locate ffmpeg without running it (cheap; safe to call on the GUI thread)."""
+    return _check_binary(_candidates("ffmpeg", config_path))
+
+
 def resolve_ytdlp(config_path: str = "") -> BinaryStatus:
     """Resolve yt-dlp binary using the documented search order.
 
@@ -157,27 +191,7 @@ def resolve_ytdlp(config_path: str = "") -> BinaryStatus:
     Returns:
         BinaryStatus with found/path/version/message/download_url populated.
     """
-    candidates: list[Path] = []
-
-    # (a) Explicit config path
-    if config_path:
-        candidates.append(Path(config_path))
-
-    # (b) Next to the app (the .exe folder when packaged)
-    app_dir = app_binary_dir()
-    candidates.append(app_dir / "yt-dlp.exe")
-    candidates.append(app_dir / "yt-dlp")
-
-    # (c) Legacy well-known location: C:\\yt-dlp\\yt-dlp.exe
-    candidates.append(_YTDLP_DEFAULT_DIR / "yt-dlp.exe")
-    candidates.append(_YTDLP_DEFAULT_DIR / "yt-dlp")
-
-    # (d) PATH
-    which_result = shutil.which("yt-dlp")
-    if which_result:
-        candidates.append(Path(which_result))
-
-    found_path = _check_binary(candidates)
+    found_path = find_ytdlp(config_path)
     if found_path is None:
         return BinaryStatus(
             found=False,
@@ -206,27 +220,7 @@ def resolve_ffmpeg(config_path: str = "") -> BinaryStatus:
     Returns:
         BinaryStatus with found/path/version/message/download_url populated.
     """
-    candidates: list[Path] = []
-
-    # (a) Explicit config path
-    if config_path:
-        candidates.append(Path(config_path))
-
-    # (b) Next to the app (the .exe folder when packaged)
-    app_dir = app_binary_dir()
-    candidates.append(app_dir / "ffmpeg.exe")
-    candidates.append(app_dir / "ffmpeg")
-
-    # (c) Legacy well-known location: C:\\yt-dlp\\ffmpeg.exe
-    candidates.append(_YTDLP_DEFAULT_DIR / "ffmpeg.exe")
-    candidates.append(_YTDLP_DEFAULT_DIR / "ffmpeg")
-
-    # (d) PATH
-    which_result = shutil.which("ffmpeg")
-    if which_result:
-        candidates.append(Path(which_result))
-
-    found_path = _check_binary(candidates)
+    found_path = find_ffmpeg(config_path)
     if found_path is None:
         return BinaryStatus(
             found=False,

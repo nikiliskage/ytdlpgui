@@ -4,14 +4,13 @@ Stream B — metadata layer.
 
 Implements :class:`~app.core.contracts.IFormatFetcher`.
 
-``no_window_kwargs`` is imported lazily so the module loads even when
-Stream A (paths.py) has not been written yet.
+yt-dlp is located on every fetch from the injected config (Settings ->
+Binaries), so a path change takes effect without a restart.
 """
 
 from __future__ import annotations
 
 import json
-import shutil
 from collections.abc import Callable
 
 from app.core.contracts import (
@@ -23,6 +22,7 @@ from app.core.contracts import (
     PlaylistItem,
 )
 from app.core.errors import map_stderr
+from app.core.paths import find_ytdlp
 
 try:
     from PySide6.QtCore import QObject, QProcess, QTimer
@@ -171,12 +171,11 @@ class FormatFetcher(QObject):
             super().__init__()
 
         self._config = config
-        self._ytdlp: str = self._locate_ytdlp()
-        # Current in-flight subprocess state (one fetch at a time).
+        # Current in-flight subprocess state (one fetch at a time). Each _run
+        # bumps the generation; callbacks from an older run are ignored.
         self._process: QProcess | None = None
         self._timer: QTimer | None = None
-        self._done: bool = False
-        self._canceled: bool = False
+        self._generation: int = 0
 
     # ------------------------------------------------------------------
     # IFormatFetcher interface
@@ -239,11 +238,17 @@ class FormatFetcher(QObject):
         The UI resets itself on cancel; we just stop the subprocess/timer and
         make sure the pending ``on_finish`` never fires.
         """
-        self._canceled = True
+        self._generation += 1
+        self._stop_current()
+
+    def _stop_current(self) -> None:
+        """Stop the in-flight subprocess/timer (its callbacks are already stale)."""
         if self._timer is not None:
             self._timer.stop()
+            self._timer = None
         if self._process is not None and _QT_AVAILABLE:
             self._process.kill()
+            self._process = None
 
     def _run(
         self,
@@ -259,19 +264,14 @@ class FormatFetcher(QObject):
         if not _QT_AVAILABLE:  # pragma: no cover
             return
 
-        # Lazily import no_window_kwargs (Stream A may be absent).
-        # Called for its side-effect of preparing the subprocess environment.
-        try:
-            from app.core.paths import no_window_kwargs
-
-            no_window_kwargs()
-        except Exception:
-            pass
+        # A new fetch supersedes any in-flight one: stop it and invalidate its
+        # callbacks so a late result can never be delivered as this fetch's.
+        self._generation += 1
+        generation = self._generation
+        self._stop_current()
 
         process = QProcess(self)
         self._process = process
-        self._done = False
-        self._canceled = False
         stdout_buf: list[str] = []
         stderr_buf: list[str] = []
 
@@ -280,9 +280,9 @@ class FormatFetcher(QObject):
         self._timer = timer
 
         def _finish_once(stdout: str, stderr: str) -> None:
-            if self._done or self._canceled:
+            if generation != self._generation:
                 return
-            self._done = True
+            self._generation += 1  # deliver at most once
             timer.stop()
             on_finish(stdout, stderr)
 
@@ -308,7 +308,7 @@ class FormatFetcher(QObject):
                 )
 
         def _timeout() -> None:
-            if self._done or self._canceled:
+            if generation != self._generation:
                 return
             process.kill()
             _finish_once(
@@ -322,7 +322,7 @@ class FormatFetcher(QObject):
         process.readyReadStandardError.connect(_read_err)
         process.finished.connect(_finished)
         process.errorOccurred.connect(_error)
-        process.start(self._ytdlp, extra_args)
+        process.start(self._locate_ytdlp(), extra_args)
         timer.start(_FETCH_TIMEOUT_MS)
 
     # ------------------------------------------------------------------
@@ -388,7 +388,10 @@ class FormatFetcher(QObject):
             on_error(map_stderr(stderr))
             return
         try:
-            data: dict[str, object] = json.loads(stdout)
+            data: object = json.loads(stdout)
+            if not isinstance(data, dict):
+                on_error(map_stderr(stderr))
+                return
             items = _parse_playlist_items(data)
             on_done(items)
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
@@ -404,15 +407,13 @@ class FormatFetcher(QObject):
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _locate_ytdlp() -> str:
-        try:
-            from app.core.paths import resolve_ytdlp
-
-            result = resolve_ytdlp()
-            if result.found and result.path:
-                return str(result.path)
-        except Exception:
-            pass
-        found = shutil.which("yt-dlp")
-        return found if found else "yt-dlp"
+    def _locate_ytdlp(self) -> str:
+        """Configured path → app folder → C:\\yt-dlp → PATH, else the bare name."""
+        configured = ""
+        if self._config is not None:
+            try:
+                configured = str(self._config.get("ytdlp_path") or "")
+            except Exception:
+                configured = ""
+        found = find_ytdlp(configured)
+        return str(found) if found else "yt-dlp"
