@@ -49,10 +49,13 @@ pyinstaller ytdlpgui.spec
 A Windows **setup installer** (with a license/disclaimer you must accept, a Start Menu
 shortcut, and an uninstaller; installs per-user — no admin — under
 `%LocalAppData%\Programs\yt-dlp-gui`, with downloads defaulting to `Documents\yt-dlp-gui\video`
-and `\audio`) is then built from `installer/ytdlpgui.iss` with
-[Inno Setup](https://jrsoftware.org/isinfo.php):
+and `\audio`) is built from `installer/ytdlpgui.iss` with
+[Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`).
+One command builds the exe **and** the installer — it finds `ISCC.exe` itself and takes the
+version from `app/__init__.py`:
 ```powershell
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\ytdlpgui.iss
+powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1
+# -> installer\Output\ytdlpgui-setup-<version>.exe
 ```
 > The unsigned `.exe`/installer may trigger a Windows SmartScreen prompt ("More info → Run anyway").
 

@@ -1,14 +1,20 @@
 ; Inno Setup script for yt-dlp GUI.
-; Build the app first (pyinstaller ytdlpgui.spec -> dist\ytdlpgui.exe), then
-; compile this with Inno Setup's ISCC.exe to produce a setup installer:
+; Easiest: build the exe and this installer in one go (finds ISCC.exe itself and
+; takes the version from app\__init__.py):
 ;
-;   pyinstaller ytdlpgui.spec
-;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\ytdlpgui.iss
+;   powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1
+;
+; Manually: pyinstaller ytdlpgui.spec, then
+;   ISCC.exe /DMyAppVersion=<version> installer\ytdlpgui.iss
 ;
 ; Output: installer\Output\ytdlpgui-setup-<version>.exe
 
 #define MyAppName "yt-dlp GUI"
-#define MyAppVersion "0.1.0"
+; Overridable from the command line (/DMyAppVersion=...); keep in sync with
+; app\__init__.py when compiling by hand.
+#ifndef MyAppVersion
+  #define MyAppVersion "0.1.0"
+#endif
 #define MyAppPublisher "nikiliskage"
 #define MyAppURL "https://github.com/nikiliskage/ytdlpgui"
 #define MyAppExeName "ytdlpgui.exe"

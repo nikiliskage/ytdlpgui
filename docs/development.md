@@ -32,10 +32,25 @@ pytest
 A single GUI `.exe` is produced with PyInstaller (binaries stay external), then wrapped into a
 per-user Windows installer with [Inno Setup](https://jrsoftware.org/isinfo.php):
 
+One command builds both (needs Inno Setup 6: `winget install JRSoftware.InnoSetup`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1
+# -> dist\ytdlpgui.exe
+# -> installer\Output\ytdlpgui-setup-<version>.exe
+```
+
+The script takes the version from `app/__init__.py` and finds `ISCC.exe` itself (PATH, the
+registry — per-user installs live under `%LocalAppData%\Programs\Inno Setup 6` — or the default
+folders). Options: `-SkipExe` reuses an existing `dist\ytdlpgui.exe`, `-Iscc <path>` points at a
+specific compiler, `-Python <path>` picks the interpreter that runs PyInstaller (default:
+`.venv\Scripts\python.exe` if present).
+
+Manual equivalent:
+
 ```powershell
 pyinstaller ytdlpgui.spec
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\ytdlpgui.iss
-# -> installer\Output\ytdlpgui-setup-0.1.0.exe
+& "<Inno Setup 6>\ISCC.exe" /DMyAppVersion=0.1.0 installer\ytdlpgui.iss
 ```
 
 ## Building these docs
