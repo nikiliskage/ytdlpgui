@@ -95,3 +95,12 @@ def test_empty_playlist_shows_error(window, mock_fetcher) -> None:  # type: igno
     _fetch(window)
     assert window.error_band.isVisible()
     assert not window.playlist_card.isVisible()
+
+
+def test_subtitle_mode_warns_about_missing_subtitles(window, mock_fetcher) -> None:  # type: ignore[no-untyped-def]
+    mock_fetcher.playlist = _playlist()
+    _fetch(window)
+    card = window.playlist_card
+    assert card.sub_note.isHidden()
+    card.segmented.set_mode(c.DownloadMode.SUBTITLE)
+    assert not card.sub_note.isHidden()

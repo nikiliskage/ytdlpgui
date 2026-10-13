@@ -42,6 +42,15 @@ _PROGRESS_TEMPLATE = (
 )
 
 
+def js_runtime_args(deno_path: str) -> list[str]:
+    """``--js-runtimes deno:<path>`` so yt-dlp can solve YouTube's JS challenge.
+
+    yt-dlp only looks for deno on PATH by default; the app keeps deno.exe next
+    to itself instead, so its location must be passed explicitly.
+    """
+    return ["--js-runtimes", f"deno:{deno_path}"] if deno_path else []
+
+
 def _escape_template(literal: str) -> str:
     """Escape a literal path for use inside a yt-dlp output template."""
     return literal.replace("%", "%%")
@@ -89,11 +98,14 @@ class YtDlpCommandBuilder:
     # Chainable configuration methods
     # ------------------------------------------------------------------
 
-    def base(self, ytdlp_path: str, ffmpeg_path: str = "") -> YtDlpCommandBuilder:
-        """Set yt-dlp executable path and optional ffmpeg location."""
+    def base(
+        self, ytdlp_path: str, ffmpeg_path: str = "", deno_path: str = ""
+    ) -> YtDlpCommandBuilder:
+        """Set yt-dlp executable path and optional ffmpeg / deno locations."""
         self._ytdlp = ytdlp_path
         if ffmpeg_path:
             self._add("--ffmpeg-location", ffmpeg_path)
+        self._add(*js_runtime_args(deno_path))
         return self
 
     def common(self, concurrent_fragments: int = 4) -> YtDlpCommandBuilder:
@@ -223,6 +235,7 @@ def build_command(
     ytdlp_path: str = "yt-dlp",
     ffmpeg_path: str = "",
     print_file: str = "",
+    deno_path: str = "",
 ) -> list[str]:
     """Build the yt-dlp command list for *options*.
 
@@ -231,7 +244,7 @@ def build_command(
     receives the final path of each downloaded file (used for renaming).
     """
     builder = YtDlpCommandBuilder()
-    builder.base(ytdlp_path, ffmpeg_path)
+    builder.base(ytdlp_path, ffmpeg_path, deno_path)
     builder.common(options.concurrent_fragments)
     if print_file:
         builder.print_final_path(print_file)

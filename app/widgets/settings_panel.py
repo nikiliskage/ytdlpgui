@@ -237,6 +237,14 @@ class SettingsPanel(QWidget):
         )
         self.ffmpeg_field.path_changed.connect(lambda v: self._set("ffmpeg_path", v))
         self._body.addWidget(self.ffmpeg_field)
+        self._field_label("deno (JavaScript runtime — needed for YouTube)")
+        self.deno_field = PathField(
+            str(self._get("deno_path")),
+            read_only=True,
+            placeholder="Auto-detected next to the app — Browse to override",
+        )
+        self.deno_field.path_changed.connect(lambda v: self._set("deno_path", v))
+        self._body.addWidget(self.deno_field)
 
         # Output — each download type has its own full folder path (Browse to pick).
         # Empty config resolves to <Documents>\yt-dlp-gui\{video,audio} at runtime.

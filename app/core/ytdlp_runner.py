@@ -26,6 +26,7 @@ from pathlib import Path
 
 from app.core.contracts import (
     AppError,
+    DownloadMode,
     DownloadOptions,
     ErrorKind,
     FinishedCallback,
@@ -37,7 +38,7 @@ from app.core.contracts import (
 )
 from app.core.errors import map_stderr
 from app.core.filenames import SUBTITLE_EXTS
-from app.core.paths import YTDLP_NOT_FOUND_MESSAGE, find_ffmpeg, find_ytdlp
+from app.core.paths import YTDLP_NOT_FOUND_MESSAGE, find_deno, find_ffmpeg, find_ytdlp
 
 try:
     from PySide6.QtCore import QObject, QProcess, QTimer, Signal
@@ -199,6 +200,8 @@ class YtDlpRunner(QObject):
         self._err_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self._canceled: bool = False
         self._reported: bool = False
+        # The running job's options (subtitle-only runs are checked on exit).
+        self._options: DownloadOptions | None = None
         # Output paths yt-dlp announces for this job ("Destination:"/"Merging
         # formats into"); used to delete leftover partials on cancel/failure.
         self._dest_files: set[str] = set()
@@ -237,6 +240,7 @@ class YtDlpRunner(QObject):
         self._dest_files = set()
         self._announced = []
         self._output_files = []
+        self._options = options
 
         if not _QT_AVAILABLE:  # pragma: no cover
             return
@@ -258,6 +262,7 @@ class YtDlpRunner(QObject):
             options,
             ytdlp_path=ytdlp_path,
             ffmpeg_path=self._locate_ffmpeg(),
+            deno_path=self._locate_deno(),
             print_file=self._print_file,
         )
 
@@ -360,9 +365,31 @@ class YtDlpRunner(QObject):
             self._cleanup_partials()
         else:
             self._output_files = self._collect_outputs()
+            error = self._missing_subtitles_error()
+            if error is not None:
+                state = JobState.FAILED
         self._remove_print_file()
 
         self._report(state, error)
+
+    def _missing_subtitles_error(self) -> AppError | None:
+        """A subtitle-only run that wrote no subtitle file is a failure, not "done".
+
+        yt-dlp exits 0 when a video simply has no subtitle in the requested
+        language (common for music), so without this check the job would show
+        "done" with nothing on disk.
+        """
+        opts = self._options
+        if opts is None or opts.mode != DownloadMode.SUBTITLE:
+            return None
+        if any(p.suffix.lower() in SUBTITLE_EXTS for p in self._output_files):
+            return None
+        langs = ", ".join(opts.subtitle_langs) or "the chosen language"
+        return AppError(
+            kind=ErrorKind.UNAVAILABLE,
+            user_message=f"No subtitles in {langs} for this video.",
+            raw=self._stderr_buf,
+        )
 
     def output_files(self) -> list[Path]:
         """Final file(s) of a COMPLETED run (empty otherwise / if unknown)."""
@@ -490,4 +517,9 @@ class YtDlpRunner(QObject):
     def _locate_ffmpeg(self) -> str:
         """Same order for ffmpeg; empty string lets yt-dlp use its own lookup."""
         found = find_ffmpeg(self._configured("ffmpeg_path"))
+        return str(found) if found else ""
+
+    def _locate_deno(self) -> str:
+        """Same order for deno (YouTube's JS challenge); "" if it isn't there."""
+        found = find_deno(self._configured("deno_path"))
         return str(found) if found else ""

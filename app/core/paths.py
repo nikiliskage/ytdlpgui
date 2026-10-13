@@ -175,6 +175,33 @@ def find_ffmpeg(config_path: str = "") -> Path | None:
     return _check_binary(_candidates("ffmpeg", config_path))
 
 
+def find_deno(config_path: str = "") -> Path | None:
+    """Locate deno — the JavaScript runtime yt-dlp needs for YouTube downloads.
+
+    Without one, YouTube serves download URLs yt-dlp cannot unlock and every
+    download fails with HTTP 403. Same lookup as the other binaries.
+    """
+    return _check_binary(_candidates("deno", config_path))
+
+
+def deno_version(path: Path) -> str | None:
+    """``deno --version`` → ``"2.9.7"`` (first line ``deno 2.9.7 (stable, …)``)."""
+    try:
+        result = subprocess.run(
+            [str(path), "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            **no_window_kwargs(),
+        )
+        parts = (result.stdout or "").split()
+        if result.returncode == 0 and len(parts) >= 2 and parts[0] == "deno":
+            return parts[1]
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
 def resolve_ytdlp(config_path: str = "") -> BinaryStatus:
     """Resolve yt-dlp binary using the documented search order.
 

@@ -42,10 +42,18 @@ def _build_steps(config: Config) -> list[Step]:
             raise RuntimeError("ffmpeg not found")
         return paths.ffmpeg_version(status.path)
 
+    def check_deno() -> str | None:
+        # Without a JS runtime YouTube downloads fail with HTTP 403.
+        path = paths.find_deno(str(config.get("deno_path") or ""))
+        if path is None:
+            raise RuntimeError("deno not found")
+        return paths.deno_version(path)
+
     return [
         ("Loading settings…", load_settings),
         ("Checking yt-dlp…", check_ytdlp),
         ("Checking ffmpeg…", check_ffmpeg),
+        ("Checking deno…", check_deno),
     ]
 
 

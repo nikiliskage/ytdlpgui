@@ -9,7 +9,9 @@ from unittest.mock import MagicMock, patch
 import app.core.paths as paths_module
 import pytest
 from app.core.paths import (
+    deno_version,
     ffmpeg_version,
+    find_deno,
     find_ffmpeg,
     find_ytdlp,
     no_window_kwargs,
@@ -301,3 +303,20 @@ def test_update_ytdlp_failure(tmp_path: Path) -> None:
 
     assert ok is False
     assert output  # non-empty error message
+
+
+def test_find_deno_beside_app(tmp_path: Path) -> None:
+    deno = tmp_path / "deno.exe"
+    deno.write_text("fake")
+    with patch("app.core.paths.app_binary_dir", return_value=tmp_path):
+        assert find_deno("") == deno
+    with patch("app.core.paths.app_binary_dir", return_value=tmp_path / "nope"):
+        assert find_deno("") is None
+
+
+def test_deno_version_parses_first_line(tmp_path: Path) -> None:
+    result = MagicMock()
+    result.returncode = 0
+    result.stdout = "deno 2.9.7 (stable, release, x86_64-pc-windows-msvc)\nv8 14.0\n"
+    with patch("app.core.paths.subprocess.run", return_value=result):
+        assert deno_version(tmp_path / "deno.exe") == "2.9.7"

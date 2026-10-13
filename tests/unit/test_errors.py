@@ -64,3 +64,9 @@ def test_map_stderr_is_pure() -> None:
     r2 = map_stderr(text)
     assert r1.kind == r2.kind
     assert r1.user_message == r2.user_message
+
+
+def test_http_403_points_to_deno() -> None:
+    """YouTube's 403 (unsolved JS challenge) gets an actionable message, not 'Network'."""
+    err = map_stderr("ERROR: unable to download video data: HTTP Error 403: Forbidden")
+    assert "403" in err.user_message and "deno" in err.user_message

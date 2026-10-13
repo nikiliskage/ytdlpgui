@@ -257,6 +257,7 @@ CONFIG_DEFAULTS: dict[str, object] = {
     "max_concurrent_downloads": 2,  # aynı anda en fazla N indirme
     "ytdlp_path": "",  # boş → otomatik çözüm (paths.py)
     "ffmpeg_path": "",
+    "deno_path": "",  # boş → uygulama klasöründeki deno.exe (YouTube için JS runtime)
     # Görünüm (handoff) — Stream D kullanır
     "accent_theme": "purple",  # purple | indigo | pink
     "dock_style": "ring",  # ring | bar

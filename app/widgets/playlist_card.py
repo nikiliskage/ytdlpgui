@@ -83,6 +83,16 @@ class PlaylistCard(QWidget):
         controls.addWidget(self.sub_chips, 1)
         layout.addLayout(controls)
 
+        # Subtitle availability is per video and unknown up front (e.g. music has
+        # none), so say what happens instead of letting jobs silently do nothing.
+        self.sub_note = QLabel(
+            "Videos without a subtitle in the chosen language will be marked failed."
+        )
+        self.sub_note.setStyleSheet("font-size:11px;color:#6b6b78;")
+        self.sub_note.setContentsMargins(0, 8, 0, 0)
+        self.sub_note.setVisible(False)
+        layout.addWidget(self.sub_note)
+
         # checklist ------------------------------------------------------------
         self.select_all = QCheckBox("Select all")
         self.select_all.setTristate(False)
@@ -212,6 +222,7 @@ class PlaylistCard(QWidget):
             self.chips.set_mode(dl_mode)
         self.chips.setVisible(not is_sub)
         self.sub_chips.setVisible(is_sub)
+        self.sub_note.setVisible(is_sub)
         self.refresh_dest()
 
     def refresh_subtitles(self) -> None:
