@@ -1,7 +1,7 @@
 """Render app screenshots to docs/assets/screenshots/ without a real download.
 
 Builds the real MainWindow with a mock fetcher (sample metadata) and grabs the
-window to PNG in a few states. Run from the repo root:
+window to PNG in a few states (empty, fetched video, settings, playlist). Run from the repo root:
 
     python tools/screenshots.py
 """
@@ -39,9 +39,33 @@ class _MockRunner:
     def cancel(self) -> None:
         pass
 
+    def output_files(self) -> list[Path]:
+        return []
+
 
 def _runner_factory() -> _MockRunner:
     return _MockRunner()
+
+
+_SAMPLE_PLAYLIST = c.PlaylistInfo(
+    id="PLsample",
+    title="Synthwave Essentials",
+    items=[
+        c.PlaylistItem(id=f"v{i}", title=title, url=f"https://x/v{i}", index=i, duration=dur)
+        for i, (title, dur) in enumerate(
+            [
+                ("Midnight Drive", 245),
+                ("Neon Skyline", 312),
+                ("Chrome Hearts", 198),
+                ("Sunset Boulevard", 276),
+                ("Night Runner", 301),
+                ("Electric Dreams", 233),
+                ("Retrograde", 264),
+            ],
+            start=1,
+        )
+    ],
+)
 
 
 class _MockFetcher:
@@ -52,7 +76,11 @@ class _MockFetcher:
         url: str,
         on_done: Callable[[c.MediaInfo, list[c.FormatInfo]], None],
         on_error: Callable[[c.AppError], None],
+        on_playlist: Callable[[c.PlaylistInfo], None] | None = None,
     ) -> None:
+        if "playlist?list=" in url and on_playlist is not None:
+            on_playlist(_SAMPLE_PLAYLIST)
+            return
         media = c.MediaInfo(
             title="Rick Astley - Never Gonna Give You Up (Official Video)",
             channel="Rick Astley",
@@ -111,6 +139,14 @@ def main() -> int:
     # 3) Settings panel.
     window.toggle_settings(True)
     _save(window, app, "settings.png")
+    window.toggle_settings(False)
+
+    # 4) A playlist link: the checklist card (one video unticked).
+    url = "https://www.youtube.com/playlist?list=PLsample"
+    window.omni.input.setText(url)
+    window._on_fetch(url)  # noqa: SLF001
+    window.playlist_card.set_checked(2, False)
+    _save(window, app, "playlist.png")
 
     return 0
 
