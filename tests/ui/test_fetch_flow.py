@@ -53,15 +53,11 @@ def test_build_options_subtitle_uses_chip_selection(window) -> None:  # type: ig
     assert opts.write_auto_subs is False  # manual subtitles only
 
 
-def test_max_concurrent_downloads_is_dynamic(window, mock_config) -> None:  # type: ignore[no-untyped-def]
-    mock_config.set("max_concurrent_downloads", 1)
+def test_downloads_run_one_at_a_time_despite_old_config(window, mock_config) -> None:  # type: ignore[no-untyped-def]
+    mock_config.set("max_concurrent_downloads", 3)  # stale key from 0.1.0 is ignored
     for _ in range(3):
         window._on_add_to_queue()  # noqa: SLF001
-    assert len(window._running) == 1  # limit honoured, two wait
-
-    mock_config.set("max_concurrent_downloads", 3)
-    window._pump()  # noqa: SLF001  # raising the limit starts the queued jobs now
-    assert len(window._running) == 3
+    assert len(window._running) == 1
 
 
 def test_build_options_subtitle_maps_region_code(window) -> None:  # type: ignore[no-untyped-def]

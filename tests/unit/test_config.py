@@ -45,12 +45,21 @@ def test_config_round_trip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
 
     cfg1 = Config()
     cfg1.set("audio_format", "mp3")
-    cfg1.set("max_concurrent_downloads", 4)
+    cfg1.set("concurrent_fragments", 8)
     cfg1.save()
 
     cfg2 = Config()
     assert cfg2.get("audio_format") == "mp3"
-    assert cfg2.get("max_concurrent_downloads") == 4
+    assert cfg2.get("concurrent_fragments") == 8
+
+
+def test_config_drops_old_max_concurrent_downloads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A config saved by 0.1.0 with parallel downloads loads without that key."""
+    monkeypatch.setenv("YTDLPGUI_CONFIG_DIR", str(tmp_path))
+    (tmp_path / "config.json").write_text('{"max_concurrent_downloads": 4}', encoding="utf-8")
+    assert Config().get("max_concurrent_downloads") is None
 
 
 def test_config_save_creates_json_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

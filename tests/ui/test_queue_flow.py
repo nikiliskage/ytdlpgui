@@ -38,21 +38,22 @@ def test_finished_sets_done_state(window, mock_runner_factory) -> None:  # type:
     assert window.dock._items[job_id].ring.state() == c.JobState.COMPLETED  # noqa: SLF001
 
 
-def test_concurrency_limit_and_slot_refill(window, mock_runner_factory, mock_config) -> None:  # type: ignore[no-untyped-def]
-    """Only max_concurrent_downloads run at once; a finished job frees its slot."""
-    mock_config.set("max_concurrent_downloads", 2)
+def test_downloads_run_in_order_one_at_a_time(window, mock_runner_factory) -> None:  # type: ignore[no-untyped-def]
+    """Only one download runs; the next queued job starts when it ends (any outcome)."""
     _load(window)
     for _ in range(3):
         window.media_card.queue_btn.click()
+    assert len(mock_runner_factory.created) == 1
+
+    mock_runner_factory.created[0].finish(c.JobState.FAILED)
     assert len(mock_runner_factory.created) == 2
+    assert mock_runner_factory.created[1].started
 
-    mock_runner_factory.created[0].finish(c.JobState.COMPLETED)
+    mock_runner_factory.created[1].finish(c.JobState.COMPLETED)
     assert len(mock_runner_factory.created) == 3
-    assert mock_runner_factory.created[2].started
 
 
-def test_cancel_queued_job_never_starts(window, mock_runner_factory, mock_config) -> None:  # type: ignore[no-untyped-def]
-    mock_config.set("max_concurrent_downloads", 1)
+def test_cancel_queued_job_never_starts(window, mock_runner_factory) -> None:  # type: ignore[no-untyped-def]
     _load(window)
     window.media_card.queue_btn.click()
     window.media_card.queue_btn.click()
@@ -172,14 +173,12 @@ def test_rename_of_vanished_file_disables_rename(window, mock_runner_factory, tm
 
 
 def _two_failed_one_done(window, mock_runner_factory, mock_config):  # type: ignore[no-untyped-def]
-    mock_config.set("max_concurrent_downloads", 3)
     _load(window)
     for _ in range(3):
         window.media_card.queue_btn.click()
-    first, second, third = mock_runner_factory.created
-    first.finish(c.JobState.FAILED)
-    second.finish(c.JobState.COMPLETED)
-    third.finish(c.JobState.FAILED)
+    # Jobs run one at a time: each finish starts the next.
+    for state in (c.JobState.FAILED, c.JobState.COMPLETED, c.JobState.FAILED):
+        mock_runner_factory.created[-1].finish(state)
 
 
 def test_retry_failed_requeues_only_failed_jobs(window, mock_runner_factory, mock_config) -> None:  # type: ignore[no-untyped-def]
@@ -187,7 +186,10 @@ def test_retry_failed_requeues_only_failed_jobs(window, mock_runner_factory, moc
 
     window.queue_panel.retry_failed_btn.click()
 
-    assert len(mock_runner_factory.created) == 5  # two new runners, one per failed job
+    # Both failed jobs are queued again; the first restarts now, the other waits.
+    assert len(mock_runner_factory.created) == 4
+    assert len(window.dock.job_ids(c.JobState.RUNNING)) == 1
+    assert len(window.dock.job_ids(c.JobState.QUEUED)) == 1
     assert not window.dock.job_ids(c.JobState.FAILED)
     assert len(window.dock.job_ids(c.JobState.COMPLETED)) == 1
 
