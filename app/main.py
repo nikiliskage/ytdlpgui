@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import sys
+from functools import partial
 from pathlib import Path
 
 from PySide6.QtGui import QColor, QGuiApplication, QIcon, QPalette
@@ -117,7 +118,9 @@ def main() -> int:
     app.setStyleSheet(load_qss(str(config.get("accent_theme") or "purple")))
     reduced_motion = bool(config.get("reduced_motion"))
 
-    window = MainWindow(FormatFetcher(config), YtDlpRunner, config)
+    # The runner reads the binary paths from config on every start, so a path
+    # changed in Settings → Binaries applies to the next download.
+    window = MainWindow(FormatFetcher(config), partial(YtDlpRunner, config), config)
 
     splash = Splash(_build_steps(config), reduced_motion)
 

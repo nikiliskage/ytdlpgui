@@ -427,17 +427,10 @@ class SettingsPanel(QWidget):
         configured = str(self._get("ytdlp_path", "") or "")
         if configured:
             return configured
-        try:
-            from app.core.paths import resolve_ytdlp
+        from app.core.paths import find_ytdlp
 
-            result = resolve_ytdlp()
-            if result.found and result.path:
-                return str(result.path)
-        except Exception:
-            pass
-        import shutil
-
-        return shutil.which("yt-dlp") or ""
+        found = find_ytdlp()
+        return str(found) if found else ""
 
     def _on_update(self) -> None:
         """Run ``yt-dlp -U`` in the background and report the result inline."""
@@ -465,7 +458,20 @@ class SettingsPanel(QWidget):
             )
         )
         proc.finished.connect(self._on_update_done)
+        proc.errorOccurred.connect(self._on_update_error)
         proc.start(ytdlp, ["-U"])
+
+    def _on_update_error(self, err: QProcess.ProcessError) -> None:
+        # FailedToStart never emits finished — without this the button stays
+        # stuck on "Updating…". Other errors are followed by finished.
+        if err != QProcess.ProcessError.FailedToStart:
+            return
+        self._update_proc = None
+        self.update_btn.setEnabled(True)
+        self.update_btn.setText("Update yt-dlp")
+        self._set_update_status(
+            "yt-dlp could not be started — check its path under Binaries.", ok=False
+        )
 
     def _on_update_done(self, exit_code: int, _status: object) -> None:
         output = "".join(self._update_out)

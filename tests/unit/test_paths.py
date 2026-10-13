@@ -10,6 +10,8 @@ import app.core.paths as paths_module
 import pytest
 from app.core.paths import (
     ffmpeg_version,
+    find_ffmpeg,
+    find_ytdlp,
     no_window_kwargs,
     resolve_ffmpeg,
     resolve_ytdlp,
@@ -297,3 +299,46 @@ def test_update_ytdlp_failure(tmp_path: Path) -> None:
 
     assert ok is False
     assert output  # non-empty error message
+
+
+# ---------------------------------------------------------------------------
+# find_ytdlp / find_ffmpeg — locate without running the binary
+# ---------------------------------------------------------------------------
+
+
+def test_find_ytdlp_prefers_config_path_and_never_runs_it(tmp_path: Path) -> None:
+    """The configured path wins, and no subprocess (--version) is spawned."""
+    explicit = tmp_path / "custom" / "yt-dlp.exe"
+    explicit.parent.mkdir()
+    explicit.write_text("fake")
+    on_path = tmp_path / "yt-dlp.exe"
+    on_path.write_text("fake")
+
+    with (
+        patch("app.core.paths.shutil.which", return_value=str(on_path)),
+        patch("app.core.paths._YTDLP_DEFAULT_DIR", tmp_path / "nonexistent"),
+        patch("app.core.paths.subprocess.run") as run,
+    ):
+        assert find_ytdlp(str(explicit)) == explicit
+    run.assert_not_called()
+
+
+def test_find_ytdlp_missing_config_path_falls_back(tmp_path: Path) -> None:
+    """A stale configured path is skipped in favour of the next candidate."""
+    on_path = tmp_path / "yt-dlp.exe"
+    on_path.write_text("fake")
+    with (
+        patch("app.core.paths.shutil.which", return_value=str(on_path)),
+        patch("app.core.paths._YTDLP_DEFAULT_DIR", tmp_path / "nonexistent"),
+        patch("app.core.paths.app_binary_dir", return_value=tmp_path / "nonexistent"),
+    ):
+        assert find_ytdlp(str(tmp_path / "gone.exe")) == on_path
+
+
+def test_find_ffmpeg_not_found_returns_none() -> None:
+    with (
+        patch("app.core.paths.shutil.which", return_value=None),
+        patch("app.core.paths._YTDLP_DEFAULT_DIR", Path("/nonexistent_dir_xyz_abc")),
+        patch("app.core.paths.app_binary_dir", return_value=Path("/nonexistent_dir_xyz_abc")),
+    ):
+        assert find_ffmpeg("") is None
