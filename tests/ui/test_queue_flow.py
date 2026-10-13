@@ -36,3 +36,42 @@ def test_finished_sets_done_state(window, mock_runner_factory) -> None:  # type:
     job_id = next(iter(window.dock._items))  # noqa: SLF001
     runner.finish(c.JobState.COMPLETED)
     assert window.dock._items[job_id].ring.state() == c.JobState.COMPLETED  # noqa: SLF001
+
+
+def test_concurrency_limit_and_slot_refill(window, mock_runner_factory, mock_config) -> None:  # type: ignore[no-untyped-def]
+    """Only max_concurrent_downloads run at once; a finished job frees its slot."""
+    mock_config.set("max_concurrent_downloads", 2)
+    _load(window)
+    for _ in range(3):
+        window.media_card.queue_btn.click()
+    assert len(mock_runner_factory.created) == 2
+
+    mock_runner_factory.created[0].finish(c.JobState.COMPLETED)
+    assert len(mock_runner_factory.created) == 3
+    assert mock_runner_factory.created[2].started
+
+
+def test_cancel_queued_job_never_starts(window, mock_runner_factory, mock_config) -> None:  # type: ignore[no-untyped-def]
+    mock_config.set("max_concurrent_downloads", 1)
+    _load(window)
+    window.media_card.queue_btn.click()
+    window.media_card.queue_btn.click()
+    queued_id = window.dock.job_ids(c.JobState.QUEUED)[0]
+
+    window._cancel_job(queued_id)  # noqa: SLF001
+    mock_runner_factory.created[0].finish(c.JobState.COMPLETED)
+
+    assert len(mock_runner_factory.created) == 1
+    assert window.dock.job_ids(c.JobState.CANCELED) == [queued_id]
+
+
+def test_clear_completed_removes_only_completed(window, mock_runner_factory) -> None:  # type: ignore[no-untyped-def]
+    _load(window)
+    window.media_card.queue_btn.click()
+    window.media_card.queue_btn.click()
+    mock_runner_factory.created[0].finish(c.JobState.COMPLETED)
+
+    window._clear_completed()  # noqa: SLF001
+
+    assert len(window.dock.job_ids()) == 1
+    assert window.dock.job_ids(c.JobState.RUNNING)

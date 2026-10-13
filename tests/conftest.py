@@ -2,7 +2,7 @@
 
 Buradaki mock'lar `app.core.contracts` arayüzlerini (Protocol) yapısal olarak
 karşılar; gerçek implementasyonlar gelmeden Stream A/B/C/D bunlara karşı test
-yazar. QueueManager yalnızca `set_callbacks(...)` + `start()` köprüsünü kullandığı
+yazar. Kuyruk (MainWindow) yalnızca `set_callbacks(...)` + `start()` köprüsünü kullandığı
 için mock'lar saf Python'dur (Qt event-loop'u zorunlu değil) ve **kendiliğinden
 bitmez** — testler bitişi `finish()` ile elle tetikler; böylece N=2 eşzamanlılık
 yarışı deterministik test edilir.

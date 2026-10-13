@@ -166,6 +166,14 @@ class Dock(QWidget):
     def item(self, job_id: str) -> DockItem | None:
         return self._items.get(job_id)
 
+    def job_ids(self, state: c.JobState | None = None) -> list[str]:
+        """Ids of the dock's items, optionally only those in *state*."""
+        return [
+            job_id
+            for job_id, item in self._items.items()
+            if state is None or item.ring.state() == state
+        ]
+
     def update_progress(self, job_id: str, progress: c.Progress) -> None:
         item = self._items.get(job_id)
         if item is not None:
