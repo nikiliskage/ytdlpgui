@@ -422,10 +422,10 @@ class MainWindow(QWidget):
         self._pump()
 
     def _clear_completed(self) -> None:
-        for job_id, item in list(self.dock._items.items()):  # noqa: SLF001
-            if item.ring.state() == c.JobState.COMPLETED:
-                self.dock.remove_item(job_id)
-                self.queue_panel.remove_row(job_id)
+        for job_id in self.dock.job_ids(c.JobState.COMPLETED):
+            self.dock.remove_item(job_id)
+            self.queue_panel.remove_row(job_id)
+            self._job_options.pop(job_id, None)
         if not self.queue_panel.rows():
             self._open_queue(False)
 
