@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, Signal
-from PySide6.QtGui import QFocusEvent, QKeyEvent
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QSize, Qt, Signal
+from PySide6.QtGui import QFocusEvent, QFont, QFontMetrics, QKeyEvent, QResizeEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -27,6 +28,65 @@ _STATUS_WORD = {
     c.JobState.CANCELED: ("canceled", "#ff5470"),
     c.JobState.QUEUED: ("queued", "#6b6b78"),
 }
+
+
+class _ElidedLabel(QLabel):
+    """One-line label that shortens its text with "…" instead of growing.
+
+    A plain QLabel's minimum width is its full text, so one long error message
+    made a queue row wider than the panel and the list scrolled sideways. This
+    one never asks for more width than it gets; the full text is its tooltip.
+    An optional bold, colored *lead* (the status word) is never shortened.
+    """
+
+    def __init__(self, style: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setStyleSheet(style)
+        self.setTextFormat(Qt.TextFormat.RichText)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.setMinimumWidth(1)
+        self._lead = ""
+        self._lead_color = ""
+        self._text = ""
+        self._text_color = ""
+
+    def set_parts(
+        self, text: str, lead: str = "", lead_color: str = "", text_color: str = ""
+    ) -> None:
+        self._lead, self._lead_color = lead, lead_color
+        self._text, self._text_color = text, text_color
+        full = " · ".join(p for p in (lead, text) if p)
+        self.setToolTip(full if len(full) > 40 else "")
+        self._render()
+
+    def plain_text(self) -> str:
+        return " · ".join(p for p in (self._lead, self._text) if p)
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        return QSize(1, super().minimumSizeHint().height())
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._render()
+
+    def _render(self) -> None:
+        avail = max(0, self.width() - 2)
+        html_parts: list[str] = []
+        if self._lead:
+            bold = QFont(self.font())
+            bold.setWeight(QFont.Weight.DemiBold)
+            avail -= QFontMetrics(bold).horizontalAdvance(self._lead + " · ")
+            html_parts.append(
+                f"<span style='color:{self._lead_color};font-weight:600'>"
+                f"{html.escape(self._lead)}</span>"
+            )
+        if self._text:
+            shown = self.fontMetrics().elidedText(self._text, Qt.TextElideMode.ElideRight, avail)
+            body = html.escape(shown)
+            if self._text_color:
+                body = f"<span style='color:{self._text_color}'>{body}</span>"
+            html_parts.append(body)
+        self.setText(" · ".join(html_parts))
 
 
 class _InlineEdit(QLineEdit):
@@ -68,29 +128,38 @@ class QueueRow(QWidget):
 
         info = QVBoxLayout()
         info.setSpacing(5)
-        self._title = QLabel(title)
-        self._title.setStyleSheet("font-size:13px;font-weight:500;")
+        self._title = _ElidedLabel("font-size:13px;font-weight:500;")
+        self._title.set_parts(title)
         self._name_edit = _InlineEdit()
         self._name_edit.setObjectName("QRenameEdit")
         self._name_edit.setVisible(False)
         self._name_edit.returnPressed.connect(self._commit_rename)
         self._name_edit.canceled.connect(self._end_rename)
-        self._meta = QLabel("queued")
-        self._meta.setStyleSheet("font-size:11px;color:#6b6b78;")
+        self._meta = _ElidedLabel("font-size:11px;color:#6b6b78;")
         info.addWidget(self._title)
         info.addWidget(self._name_edit)
         info.addWidget(self._meta)
-        layout.addLayout(info, 1)
+        layout.addLayout(info, 3)
 
+        # The bar shares the row with the text (3:2) instead of sitting at a fixed
+        # 150px on the far right, so there is no wide empty gap between them.
         self._bar = QProgressBar()
         self._bar.setTextVisible(False)
-        self._bar.setFixedSize(150, 5)
+        self._bar.setFixedHeight(5)
+        self._bar.setMinimumWidth(120)
+        self._bar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._bar.setRange(0, 100)
         self._bar.setValue(0)
-        layout.addWidget(self._bar)
+        layout.addWidget(self._bar, 2)
 
-        actions = QHBoxLayout()
+        # Fixed-width action area (room for the most buttons a row ever shows: 3),
+        # so progress bars line up across rows whatever their state.
+        actions_box = QWidget()
+        actions_box.setFixedWidth(3 * 28 + 2 * 4)
+        actions = QHBoxLayout(actions_box)
+        actions.setContentsMargins(0, 0, 0, 0)
         actions.setSpacing(4)
+        actions.addStretch(1)
         self._cancel = self._act("close", lambda: self.cancel.emit(job_id))
         self._retry = self._act("retry", lambda: self.retry.emit(job_id))
         self._rename = self._act("edit", self.begin_rename)
@@ -100,7 +169,7 @@ class QueueRow(QWidget):
         for a in (self._cancel, self._retry, self._rename, self._folder, self._remove):
             actions.addWidget(a)
         self._state = c.JobState.QUEUED
-        layout.addLayout(actions)
+        layout.addWidget(actions_box)
         self.set_state(c.JobState.QUEUED)
 
     def _act(self, glyph: str, slot: object) -> QPushButton:
@@ -123,16 +192,11 @@ class QueueRow(QWidget):
             bits.append(f"ETA {progress.eta // 60:02d}:{progress.eta % 60:02d}")
         if bits:
             word, color = _STATUS_WORD[c.JobState.RUNNING]
-            self._meta.setText(
-                f"<span style='color:{color};font-weight:600'>{word}</span> · " + " · ".join(bits)
-            )
+            self._meta.set_parts(" · ".join(bits), lead=word, lead_color=color)
 
     def set_state(self, state: c.JobState, message: str = "", detail: str = "") -> None:
         word, color = _STATUS_WORD[state]
-        text = f"<span style='color:{color};font-weight:600'>{word}</span>"
-        if message:
-            text += f" · {message}"
-        self._meta.setText(text)
+        self._meta.set_parts(message, lead=word, lead_color=color)
         # Full raw error on hover (the visible message may be clipped).
         self.setToolTip(detail)
         chunk = {
@@ -190,16 +254,17 @@ class QueueRow(QWidget):
         self._title.setVisible(True)
 
     def set_title(self, title: str) -> None:
-        self._title.setText(title)
+        self._title.set_parts(title)
+
+    def meta_text(self) -> str:
+        """Plain status line (state word · message), unshortened."""
+        return self._meta.plain_text()
 
     def show_note(self, message: str, error: bool = False) -> None:
         """Inline status after the state word (e.g. a rename result)."""
         word, color = _STATUS_WORD[self._state]
         note_color = "#ff5470" if error else "#9a9aa6"
-        self._meta.setText(
-            f"<span style='color:{color};font-weight:600'>{word}</span> · "
-            f"<span style='color:{note_color}'>{html.escape(message)}</span>"
-        )
+        self._meta.set_parts(message, lead=word, lead_color=color, text_color=note_color)
 
 
 class QueuePanel(QWidget):

@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - A long queue (e.g. a whole playlist) no longer widens the window past the screen: dock items
   scroll sideways (mouse wheel), and the download that just started is scrolled into view.
+- Queue panel: a long error message no longer makes a row wider than the panel (which let the
+  list scroll sideways and cut titles off). Titles and status lines are shortened with "…" (full
+  text on hover), the progress bar shares the row with the text instead of leaving a wide gap,
+  and bars line up across rows.
 - A subtitle-only download for a video without subtitles in that language is now **failed**
   ("No subtitles in en for this video.") instead of "done" with nothing on disk; the playlist
   card warns about this in Subtitle mode.
