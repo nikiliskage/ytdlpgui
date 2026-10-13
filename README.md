@@ -26,9 +26,9 @@ avoids antivirus/SmartScreen false positives and ffmpeg licensing concerns):
 - **yt-dlp.exe** — https://github.com/yt-dlp/yt-dlp/releases
 - **ffmpeg.exe** — https://www.gyan.dev/ffmpeg/builds/ (needed for merging video+audio and audio conversion)
 
-Put both **next to the app** — the app searches its own folder (the install folder) first — or
-point to them in **Settings → Binaries**. (In a source checkout the repo root, or `C:\yt-dlp`,
-also works.)
+Put both **next to the app** (the install folder), or point to them in **Settings → Binaries**.
+Those are the only two places the app looks — it never picks up a yt-dlp/ffmpeg from your PATH or
+another folder. (In a source checkout, the repo root counts as the app's folder.)
 
 ## Install (from source, during development)
 ```powershell
@@ -56,6 +56,10 @@ and `\audio`) is then built from `installer/ytdlpgui.iss` with
   so the resulting mp4 plays everywhere
 - Download queue (up to 2 concurrent), cancel / retry; cancelling (or a failed job) cleans up the
   partial files it left behind
+- **Playlists** — paste a playlist link (or open the playlist from a video that's part of one),
+  tick the videos you want, and each is queued as its own job into
+  `<Video|Audio>\<Playlist name>\01 - Title.ext`
+- **Rename** a finished download from the queue (its subtitle/thumbnail files follow along)
 - Audio extraction — **Best audio** keeps the source codec, or convert to opus / mp3 / m4a
 - Subtitles: pick languages (Settings, up to 2); the picker greys out languages a video doesn't offer
 - Thumbnail / metadata embedding

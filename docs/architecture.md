@@ -16,11 +16,12 @@ app/
     config.py          # JSON-persisted settings (Stream A)
     paths.py           # yt-dlp/ffmpeg resolution + versions + CREATE_NO_WINDOW + -U update (A)
     command_builder.py # Builds yt-dlp arg lists (Builder) (Stream B)
-    format_fetcher.py  # `-J` metadata/formats + `--flat-playlist` (async) (B)
+    format_fetcher.py  # `-J` metadata/formats; playlist links → PlaylistInfo (async) (B)
+    filenames.py       # Windows-safe names, playlist file template, rename_output
     ytdlp_runner.py    # QProcess wrapper + progress/stderr parsing (Facade+Adapter) (B)
     errors.py          # stderr -> AppError mapping (B)
-    queue_manager.py   # Up to 2 concurrent jobs (Command + State) (Stream C)
-  main_window.py, splash.py, widgets/, resources/, icons.py, ui_state.py  # UI (Stream D)
+  main_window.py       # UI shell + the download queue (concurrency limit from config)
+  splash.py, widgets/, resources/, icons.py, ui_state.py  # UI (Stream D)
 tests/                 # pytest (unit / integration[@network] / ui[pytest-qt]) + fixtures (Stream T)
 ```
 
@@ -36,9 +37,11 @@ tests/                 # pytest (unit / integration[@network] / ui[pytest-qt]) +
 
 ## Data flow
 1. User pastes a URL → **FormatFetcher** runs `yt-dlp -J` → `(MediaInfo, list[FormatInfo])`.
-2. User picks a quality/format → a `DownloadOptions` is built and added to the **QueueManager**.
-3. For each free slot (max 2), the queue uses a **RunnerFactory** to create a **YtDlpRunner**,
-   wires `set_callbacks(...)`, and `start()`s it.
+2. User picks a quality/format → a `DownloadOptions` is built and queued by **MainWindow**.
+3. For each free slot (`max_concurrent_downloads`, re-read on every pump so Settings apply
+   immediately), the queue uses a **RunnerFactory** to create a **YtDlpRunner**, wires
+   `set_callbacks(...)`, and `start()`s it. The runner reports `on_finished` exactly once —
+   including when yt-dlp fails to start — so a slot is always freed.
 4. The runner parses `--progress-template` lines into `Progress` and reports via callbacks;
    `stderr` is mapped to `AppError` on failure.
 5. The UI's **Download Dock** renders progress (QPainter rings); the queue panel lists details.
@@ -46,6 +49,13 @@ tests/                 # pytest (unit / integration[@network] / ui[pytest-qt]) +
 ## Key invariants
 - `contracts.py` is the frozen interface layer; modules depend on it, not on each other.
 - Binaries are user-provided; subprocess calls hide the console window on Windows.
+- Binaries come only from the configured path or the app's own folder — never PATH. Fetch and
+  download locate them via `paths.find_ytdlp/find_ffmpeg` (no subprocess); only the splash and
+  Settings run `--version` (`resolve_*`). A missing yt-dlp fails the job/fetch with a clear message.
+- Playlists are queued as one single-video job per item (`--no-playlist`), with the playlist
+  index baked into the output template (`NN - %(title)s.%(ext)s`) under a playlist subfolder.
+- The runner asks yt-dlp to `--print-to-file after_move:filepath` (unlike `--print`, this does
+  not imply `--quiet`) so `output_files()` knows the final file for Rename.
 - Cancel/failure deletes that job's partial files (`.part`/`.ytdl`/fragments), scoped per job.
   (`--continue` is passed but has no effect on retry today, since partials are removed — true
   resume is deferred; see `plans/features/resumable-downloads.md`.)

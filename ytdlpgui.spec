@@ -2,7 +2,7 @@
 """PyInstaller spec for ytdlpgui — single-file, GUI-only.
 
 yt-dlp.exe and ffmpeg.exe are NOT bundled; the user provides them (the app
-resolves them from config / C:\\yt-dlp / PATH at runtime). Only the GUI and its
+looks for them in Settings → Binaries, then next to the .exe). Only the GUI and its
 QSS theme are packaged.
 
 Build:  pyinstaller ytdlpgui.spec

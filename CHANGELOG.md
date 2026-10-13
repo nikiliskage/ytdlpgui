@@ -4,6 +4,43 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Playlist downloads.** A playlist link opens a checklist of its videos (all ticked, Select all);
+  a video link that is part of a playlist offers "Open playlist". One mode/quality applies to the
+  selection; each video is queued as its own job and saved as
+  `<Video|Audio>\<Playlist name>\NN - <title>.<ext>`. Cookies (if enabled) are applied when
+  reading the playlist too, so private/sign-in playlists can be opened.
+- **Rename finished downloads** from the queue (inline, Enter/Esc). The extension is kept,
+  invalid characters are replaced, and same-named subtitle/thumbnail files are renamed too; a
+  name clash renames nothing and is reported in the row.
+
+### Changed
+- yt-dlp / ffmpeg are looked up **only** in Settings → Binaries and the app's own (install)
+  folder. `C:\yt-dlp` and PATH are no longer searched; a missing yt-dlp now fails the fetch /
+  download with a clear message instead of trying whatever `yt-dlp` is on PATH.
+
+### Fixed
+- A `%` in an output folder name (e.g. a playlist called "100% Hits") no longer breaks the
+  yt-dlp output template.
+- The yt-dlp / ffmpeg paths set in Settings → Binaries are now used for fetching and
+  downloading (previously only the splash and the update button honoured them), and a
+  changed path applies without a restart.
+- Starting a download no longer freezes the UI while `yt-dlp --version` / `ffmpeg -version`
+  run; binaries are located without being executed.
+- A download whose yt-dlp binary cannot be started now fails with a clear message instead
+  of staying "downloading" forever and blocking the queue. Same for "Update yt-dlp".
+- A superseded fetch (Retry, or cancel then fetch again) can no longer deliver its stale
+  result in place of the new one.
+- Non-ASCII output (e.g. Turkish titles) split across reads is decoded correctly, so
+  partial-file cleanup finds the right paths.
+- Settings are written atomically; a non-object `config.json` falls back to defaults
+  instead of crashing on start.
+
+### Removed
+- Unused `app/core/queue_manager.py` (the main window owns the queue).
+
 ## [0.1.0] - 2026-06-13
 
 ### Added
