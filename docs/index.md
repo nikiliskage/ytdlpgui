@@ -10,12 +10,13 @@ hide:
 
 # yt-dlp GUI
 
-<span class="ytg-badge">Latest: v0.1.0</span>
+<span class="ytg-badge">Latest: v0.2.0</span>
 
 <p class="ytg-tagline">
 A dark-themed PySide6 desktop GUI for <a href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a> (Windows-first).
 Paste a link, pick a <strong>real available format</strong>, and download — with a built-in queue,
-cookie support for sign-in / age-restricted content, audio extraction, subtitles, and one-click yt-dlp self-update.
+playlist downloads, renaming of finished files, cookie support for sign-in / age-restricted content,
+audio extraction, subtitles, and one-click yt-dlp self-update.
 </p>
 
 <div class="ytg-cta" markdown>
@@ -55,6 +56,24 @@ downloads prefer AAC audio so the resulting mp4 plays everywhere.
 ### Download queue
 Up to 2 concurrent downloads with cancel and retry. Cancelling (or a failed job) cleans up the
 partial files it left behind.
+</div>
+</div>
+
+<div class="ytg-card" markdown>
+<span class="ytg-icon">:material-playlist-check:</span>
+<div class="ytg-body" markdown>
+### Playlists
+Paste a playlist link and tick the videos you want. Each one is queued as its own job and
+saved as `<Playlist name> - Title.ext`, in playlist order.
+</div>
+</div>
+
+<div class="ytg-card" markdown>
+<span class="ytg-icon">:material-rename-box:</span>
+<div class="ytg-body" markdown>
+### Rename finished files
+Rename a download right from the queue. The extension is kept and matching subtitle /
+thumbnail files are renamed with it.
 </div>
 </div>
 
@@ -111,7 +130,8 @@ Update yt-dlp itself (`yt-dlp -U`) from inside the app and see the result inline
 ---
 
 !!! info "You provide the binaries"
-    This app does **not** bundle `yt-dlp.exe` or `ffmpeg.exe` — you supply them. This keeps the
+    This app does **not** bundle `yt-dlp.exe`, `ffmpeg.exe` or `deno.exe` — you supply them
+    (YouTube downloads need `deno.exe`). This keeps the
     download small and avoids antivirus/SmartScreen false positives and ffmpeg licensing concerns.
     See [Getting Started](getting-started.md).
 

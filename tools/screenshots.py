@@ -20,12 +20,11 @@ os.environ.setdefault("YTDLPGUI_CONFIG_DIR", tempfile.mkdtemp(prefix="ytg-shots-
 # Allow running as `python tools/screenshots.py` from the repo root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
-
 from app.core import contracts as c  # noqa: E402
 from app.core.config import Config  # noqa: E402
 from app.main import _apply_static_dark_theme  # noqa: E402
 from app.main_window import MainWindow, load_qss  # noqa: E402
+from PySide6.QtWidgets import QApplication  # noqa: E402
 
 OUT = Path("docs/assets/screenshots")
 

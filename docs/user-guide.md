@@ -25,7 +25,10 @@ The media card has three modes:
 - Paste a **playlist link** (e.g. `youtube.com/playlist?list=…`) and press **Fetch**: the playlist
   card lists every video with a checkbox (all ticked; **Select all** toggles them).
 - A **video link that is part of a playlist** (`watch?v=…&list=…`) opens just that video; the
-  media card then offers **Open playlist**.
+  media card then offers **Open playlist**. (Not for YouTube *mixes* — `list=RD…` — which are
+  endless, auto-generated lists.)
+- For a **channel**, paste its *Videos* tab (`youtube.com/@name/videos`); the channel's home link
+  lists tabs, not videos, so it shows "no downloadable videos".
 - Pick one mode and quality for the whole selection, then **Add N to queue**. Each video becomes
   its own queue job (cancel / retry individually) and is saved as
   `<Video|Audio folder>\<Playlist name>\01 - <title>.<ext>` — numbered in playlist order.
@@ -38,10 +41,14 @@ The media card has three modes:
 - **Retry** re-runs the job. (Cancelled or failed jobs have their partial files removed, so a
   retry downloads again from the start.)
 - Failed downloads show yt-dlp's actual error line (full raw error on hover).
+- The queue header has bulk actions: **Retry failed** (re-queue every failed job — e.g. a
+  playlist's temporary HTTP 403s), **Clear failed** and **Clear completed**.
 - **Rename** (pencil icon on a finished job) edits the file name in place — **Enter** saves,
   **Esc** cancels. The extension is kept, invalid characters are replaced, and subtitle /
   thumbnail files with the same name are renamed too. If the name is taken, nothing is renamed
   and the row says so.
+- **Right-click a dock item** for **Rename…**, **Open folder** (the folder the file is in) and
+  **Show in queue**.
 
 ## Cookies (sign-in / age-restricted)
 
@@ -83,8 +90,13 @@ failed) is reported inline.
     those. If it still fails, the site may require a PO token — see the
     [yt-dlp wiki](https://github.com/yt-dlp/yt-dlp/wiki).
 
-??? question "\"ffmpeg not found\""
-    Set its path in **Settings → Binaries**.
+??? question "\"yt-dlp not found\" / \"ffmpeg not found\""
+    Put the `.exe` next to the app (the install folder) or set its path in
+    **Settings → Binaries**. The app does not look in your PATH.
+
+??? question "\"This yt-dlp is too old for the app\""
+    Your `yt-dlp.exe` predates the option the app uses to hand it deno. Click
+    **Update yt-dlp** (or replace the file with the latest release).
 
 ??? question "Download fails with 403 / format errors"
     For YouTube, yt-dlp needs **deno** to solve a JavaScript challenge — put `deno.exe` next to the

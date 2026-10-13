@@ -5,7 +5,7 @@ Paste a link, pick a real available format, and download — with a built-in que
 downloads, renaming of finished files, cookie support for sign-in/age-restricted content, audio
 extraction, subtitles, and one-click yt-dlp self-update.
 
-> **Status:** in development (`0.1.0`).
+> **Status:** in development (`0.2.0`).
 >
 > 📖 **Documentation:** <https://nikiliskage.github.io/ytdlpgui/>
 
@@ -93,7 +93,8 @@ powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1
 - Cookie module for sign-in / age-restricted content — **Firefox** (`--cookies-from-browser`) or a
   **cookies.txt** file; applied at fetch *and* download time (read locally, never stored). A one-time
   disclaimer is shown before it's first enabled.
-- Clear, actionable errors (age/sign-in, geo-block, rate-limit, ffmpeg, network) with an inline
+- Clear, actionable errors (age/sign-in, geo-block, rate-limit, HTTP 403/deno, ffmpeg, outdated
+  yt-dlp, network) with an inline
   "Enable cookies" shortcut where relevant
 - One-click "Update yt-dlp" (`yt-dlp -U`)
 
@@ -109,8 +110,9 @@ powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1
 - **How do I download only some videos of a playlist?** Paste the playlist link and untick the ones
   you don't want. For a `watch?v=…&list=…` link, the video opens first — click **Open playlist** on
   the media card. Files are numbered in playlist order inside a folder named after the playlist.
+  For a channel, paste its *Videos* tab (`youtube.com/@name/videos`).
 - **Can I rename a file after it downloaded?** Yes — click the pencil on the finished job in the
-  queue, type the new name, press Enter. The extension is kept and matching subtitle/thumbnail
+  queue (or right-click it in the dock → **Rename…**), type the new name, press Enter. The extension is kept and matching subtitle/thumbnail
   files are renamed too.
 - **Cookies safe?** They are read locally and passed only to yt-dlp for the download — never stored
   or transmitted by this app. See [SECURITY.md](SECURITY.md). Prefer a secondary account.
