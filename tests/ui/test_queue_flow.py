@@ -113,7 +113,7 @@ def test_rename_clash_shows_inline_error(window, mock_runner_factory, tmp_path) 
     row.rename.emit(row.job_id, "B")
 
     assert media.is_file()
-    assert "already exists" in row._meta.text()  # noqa: SLF001
+    assert "already exists" in row.meta_text()
     assert row.output_name() == "A"
 
 
@@ -136,3 +136,23 @@ def test_dock_rename_opens_queue_and_edits_row(window, mock_runner_factory, tmp_
 
     assert window.queue_panel.is_open()
     assert row.is_renaming()
+
+
+def test_long_error_does_not_widen_the_queue(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """A long failure message is shortened, never forcing the list to scroll sideways."""
+    from app.core.errors import map_stderr
+    from app.widgets.queue_panel import QueuePanel
+    from PySide6.QtWidgets import QScrollArea
+
+    panel = QueuePanel(reduced_motion=True)
+    qtbot.addWidget(panel)
+    panel.resize(700, 380)
+    panel.set_open(True)
+    err = map_stderr("ERROR: unable to download video data: HTTP Error 403: Forbidden")
+    row = panel.add_row("x", "A very long track title " * 8)
+    row.set_state(c.JobState.FAILED, err.user_message, err.raw)
+    qtbot.wait(20)
+
+    assert row.minimumSizeHint().width() < 700
+    assert panel.findChildren(QScrollArea)[0].horizontalScrollBar().maximum() == 0
+    assert err.user_message in row.meta_text()  # full text kept (tooltip / accessor)
