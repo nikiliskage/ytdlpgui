@@ -101,7 +101,8 @@ class YtDlpCommandBuilder:
         # Only ever download the single video the user selected. Without this, a
         # URL that carries a playlist (e.g. ...&list=WL from "Watch Later") makes
         # yt-dlp download the whole list. The fetch step already uses
-        # --no-playlist; the download must match (playlist support is deferred).
+        # --no-playlist; the download must match. Playlists are downloaded as one
+        # job per video (the UI expands the list and queues each item).
         self._add("--no-playlist")
         self._add("--windows-filenames")
         self._add("--continue")
@@ -111,9 +112,13 @@ class YtDlpCommandBuilder:
         return self
 
     def output(self, directory: Path, template: str) -> YtDlpCommandBuilder:
-        """Set output path template."""
-        output_path = str(directory / template)
-        self._add("-o", output_path)
+        """Set output path template.
+
+        The directory is literal, not a template: a ``%`` in a folder name (e.g. a
+        playlist called "100% Hits") must be escaped or yt-dlp would expand it.
+        """
+        output_path = Path(_escape_template(str(directory))) / template
+        self._add("-o", str(output_path))
         return self
 
     def print_final_path(self, print_file: str) -> YtDlpCommandBuilder:

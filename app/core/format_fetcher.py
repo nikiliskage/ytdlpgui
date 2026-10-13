@@ -19,6 +19,7 @@ from app.core.contracts import (
     FormatInfo,
     IConfig,
     MediaInfo,
+    PlaylistInfo,
     PlaylistItem,
 )
 from app.core.errors import map_stderr
@@ -134,23 +135,47 @@ def _parse_format_list(data: dict[str, object]) -> list[FormatInfo]:
 
 
 def _parse_playlist_items(data: dict[str, object]) -> list[PlaylistItem]:
-    """Extract :class:`PlaylistItem` list from ``yt-dlp --flat-playlist -J``."""
+    """Extract :class:`PlaylistItem` list from ``yt-dlp --flat-playlist -J``.
+
+    ``index`` is the entry's position in the playlist (``playlist_index`` when
+    yt-dlp reports it, else its 1-based order). Entries without a URL are
+    skipped — they can't be downloaded (e.g. deleted/private videos).
+    """
     entries_val = data.get("entries")
     entries: list[object] = list(entries_val) if isinstance(entries_val, list) else []
     result: list[PlaylistItem] = []
-    for entry_raw in entries:
+    for position, entry_raw in enumerate(entries, start=1):
         if not isinstance(entry_raw, dict):
             continue
         entry: dict[str, object] = entry_raw
         url = str(entry.get("url") or entry.get("webpage_url") or "")
+        if not url:
+            continue
         result.append(
             PlaylistItem(
                 id=str(entry.get("id") or ""),
-                title=str(entry.get("title") or ""),
+                title=str(entry.get("title") or entry.get("id") or url),
                 url=url,
+                index=_to_int(entry.get("playlist_index")) or position,
+                duration=_to_int(entry.get("duration")),
             )
         )
     return result
+
+
+def _parse_playlist_info(data: dict[str, object]) -> PlaylistInfo:
+    """Extract :class:`PlaylistInfo` (title + items) from a playlist ``-J`` dump."""
+    playlist_id = str(data.get("id") or "")
+    return PlaylistInfo(
+        id=playlist_id,
+        title=str(data.get("title") or playlist_id or "Playlist"),
+        items=_parse_playlist_items(data),
+    )
+
+
+def _is_playlist(data: dict[str, object]) -> bool:
+    """True if a ``-J`` dump describes a playlist rather than a single video."""
+    return data.get("_type") in ("playlist", "multi_video")
 
 
 # ---------------------------------------------------------------------------
@@ -187,8 +212,13 @@ class FormatFetcher(QObject):
 
         Cookie args are included so age-restricted / sign-in videos can be read
         at fetch time — not just at download time.
+
+        ``--flat-playlist`` only affects playlist URLs: a single video is still
+        fully extracted, while a pure playlist link returns its entry list
+        quickly instead of resolving every video (handled via ``on_playlist``).
+        ``--no-playlist`` keeps a ``watch?v=…&list=…`` link on the one video.
         """
-        return ["-J", "--no-playlist", *cookie_args, "--", url]
+        return ["-J", "--flat-playlist", "--no-playlist", *cookie_args, "--", url]
 
     def _cookie_args(self) -> list[str]:
         """Cookie CLI flags from the injected config (empty if none/unavailable)."""
@@ -207,22 +237,25 @@ class FormatFetcher(QObject):
         url: str,
         on_done: Callable[[MediaInfo, list[FormatInfo]], None],
         on_error: Callable[[AppError], None],
+        on_playlist: Callable[[PlaylistInfo], None] | None = None,
     ) -> None:
         """Run ``yt-dlp -J --no-playlist`` (with cookies) and parse the result."""
         args = self._build_fetch_args(url, self._cookie_args())
         self._run(
             args,
-            lambda stdout, stderr: self._handle_dump(stdout, stderr, on_done, on_error),
+            lambda stdout, stderr: self._handle_dump(
+                stdout, stderr, on_done, on_error, on_playlist
+            ),
         )
 
     def expand_playlist(
         self,
         url: str,
-        on_done: Callable[[list[PlaylistItem]], None],
+        on_done: Callable[[PlaylistInfo], None],
         on_error: Callable[[AppError], None],
     ) -> None:
-        """Run ``yt-dlp --flat-playlist -J`` and parse the result."""
-        args = ["--flat-playlist", "-J", "--", url]
+        """Run ``yt-dlp --flat-playlist -J`` (with cookies) and parse the result."""
+        args = ["--flat-playlist", "-J", *self._cookie_args(), "--", url]
         self._run(
             args,
             lambda stdout, stderr: self._handle_flat(stdout, stderr, on_done, on_error),
@@ -342,6 +375,7 @@ class FormatFetcher(QObject):
         stderr: str,
         on_done: Callable[[MediaInfo, list[FormatInfo]], None],
         on_error: Callable[[AppError], None],
+        on_playlist: Callable[[PlaylistInfo], None] | None = None,
     ) -> None:
         if not stdout.strip():
             on_error(map_stderr(stderr))
@@ -371,6 +405,17 @@ class FormatFetcher(QObject):
                 )
             )
             return
+        if _is_playlist(parsed):
+            if on_playlist is not None:
+                on_playlist(_parse_playlist_info(parsed))
+            else:
+                on_error(
+                    AppError(
+                        kind=ErrorKind.UNAVAILABLE,
+                        user_message="This link is a playlist, not a single video.",
+                    )
+                )
+            return
         try:
             media = _parse_media_info(parsed)
             formats = _parse_format_list(parsed)
@@ -388,7 +433,7 @@ class FormatFetcher(QObject):
         self,
         stdout: str,
         stderr: str,
-        on_done: Callable[[list[PlaylistItem]], None],
+        on_done: Callable[[PlaylistInfo], None],
         on_error: Callable[[AppError], None],
     ) -> None:
         if not stdout.strip():
@@ -399,8 +444,7 @@ class FormatFetcher(QObject):
             if not isinstance(data, dict):
                 on_error(map_stderr(stderr))
                 return
-            items = _parse_playlist_items(data)
-            on_done(items)
+            on_done(_parse_playlist_info(data))
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
             on_error(
                 AppError(

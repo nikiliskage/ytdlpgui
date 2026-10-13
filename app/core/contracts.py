@@ -208,6 +208,17 @@ class PlaylistItem:
     id: str
     title: str
     url: str
+    index: int = 0  # playlist içindeki sıra (1'den başlar); dosya adı öneki
+    duration: int | None = None  # saniye (düz listede varsa)
+
+
+@dataclass
+class PlaylistInfo:
+    """Açılmış bir playlist: başlık (alt klasör adı) + öğeler."""
+
+    id: str
+    title: str
+    items: list[PlaylistItem] = field(default_factory=list)
 
 
 @dataclass
@@ -312,14 +323,18 @@ class IFormatFetcher(Protocol):
         url: str,
         on_done: Callable[[MediaInfo, list[FormatInfo]], None],
         on_error: Callable[[AppError], None],
+        on_playlist: Callable[[PlaylistInfo], None] | None = None,
     ) -> None:
-        """Tek video için meta + mevcut formatları çek (media card'ı besler)."""
+        """Tek video için meta + mevcut formatları çek (media card'ı besler).
+
+        URL bir playlist'e çıkarsa (saf playlist linki) `on_playlist` çağrılır.
+        """
         ...
 
     def expand_playlist(
         self,
         url: str,
-        on_done: Callable[[list[PlaylistItem]], None],
+        on_done: Callable[[PlaylistInfo], None],
         on_error: Callable[[AppError], None],
     ) -> None:
         """Playlist URL'ini öğelerine aç (--flat-playlist)."""

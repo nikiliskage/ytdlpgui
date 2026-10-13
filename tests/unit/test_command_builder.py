@@ -342,8 +342,16 @@ class TestBuilderAPI:
 
 
 # ---------------------------------------------------------------------------
-# Final-path capture (rename support)
+# Literal paths inside templates + final-path capture (rename support)
 # ---------------------------------------------------------------------------
+
+
+def test_output_dir_percent_is_escaped() -> None:
+    """A '%' in a folder name (e.g. a playlist "100% Hits") must not be expanded."""
+    opts = _make_opts(video_dir=Path("C:/videos/100% Hits"))
+    args = _args(opts)
+    out = args[args.index("-o") + 1]
+    assert out == str(Path("C:/videos/100%% Hits") / "%(title)s.%(ext)s")
 
 
 def test_print_file_adds_print_to_file_after_move() -> None:

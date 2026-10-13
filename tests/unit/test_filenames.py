@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from app.core.filenames import rename_output, sanitize_filename
+from app.core.filenames import playlist_item_template, rename_output, sanitize_filename
 
 # ---------------------------------------------------------------------------
 # sanitize_filename
@@ -31,6 +31,16 @@ def test_sanitize_filename(raw: str, expected: str) -> None:
 
 def test_sanitize_filename_caps_length() -> None:
     assert len(sanitize_filename("x" * 500)) <= 150
+
+
+# ---------------------------------------------------------------------------
+# playlist_item_template
+# ---------------------------------------------------------------------------
+
+
+def test_playlist_item_template_pads_to_total_width() -> None:
+    assert playlist_item_template(3, 9) == "03 - %(title)s.%(ext)s"
+    assert playlist_item_template(7, 120) == "007 - %(title)s.%(ext)s"
 
 
 # ---------------------------------------------------------------------------

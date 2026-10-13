@@ -8,12 +8,47 @@ widgets bind to it through the main window.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from urllib.parse import parse_qs, urlsplit
 
 from app.core import contracts as c
 
 # URL validation regex — matches the handoff `URL_RE`
 # (`^https?://<host>.<tld>` with a 2+ char tld).
 URL_RE = r"^https?://[^\s.]+\.[^\s]{2,}"
+
+_YOUTUBE_HOSTS = {"youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"}
+
+
+def format_duration(seconds: int | None) -> str:
+    """``h:mm:ss`` / ``m:ss`` for a duration in seconds; ``—`` if unknown."""
+    if seconds is None:
+        return "—"
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+
+def playlist_url(url: str) -> str | None:
+    """Playlist link for a YouTube video URL that also carries ``list=``.
+
+    ``watch?v=ID&list=PL…`` opens the single video (the fetch uses
+    ``--no-playlist``); this returns ``https://www.youtube.com/playlist?list=PL…``
+    so the media card can offer "Open the playlist". ``None`` when the URL has
+    no playlist id or is not a YouTube link.
+    """
+    try:
+        parts = urlsplit(url.strip())
+    except ValueError:
+        return None
+    host = (parts.hostname or "").removeprefix("www.")
+    if host not in _YOUTUBE_HOSTS:
+        return None
+    list_id = (parse_qs(parts.query).get("list") or [""])[0].strip()
+    if not list_id:
+        return None
+    return f"https://www.youtube.com/playlist?list={list_id}"
 
 
 # Quality chip sets per mode — (chip_id, label, suffix). Matches handoff
@@ -95,6 +130,7 @@ class UiState:
 
     media: c.MediaInfo | None = None
     formats: list[c.FormatInfo] = field(default_factory=list)
+    playlist: c.PlaylistInfo | None = None  # set when the loaded link is a playlist
 
     mode: c.DownloadMode = c.DownloadMode.VIDEO
     quality: str | None = "best"
