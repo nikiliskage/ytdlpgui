@@ -104,3 +104,18 @@ def test_subtitle_mode_warns_about_missing_subtitles(window, mock_fetcher) -> No
     assert card.sub_note.isHidden()
     card.segmented.set_mode(c.DownloadMode.SUBTITLE)
     assert not card.sub_note.isHidden()
+
+
+def test_retry_after_open_playlist_error_re_expands(window, mock_fetcher) -> None:  # type: ignore[no-untyped-def]
+    """Retry on a failed "Open playlist" expands the playlist again, not the video."""
+    _fetch(window, "https://www.youtube.com/watch?v=abc&list=PL1")
+    mock_fetcher.fail_with = c.AppError(kind=c.ErrorKind.NETWORK, user_message="offline")
+    window.media_card.playlist_btn.click()
+    assert window.error_band.isVisible()
+
+    mock_fetcher.fail_with = None
+    mock_fetcher.playlist = _playlist()
+    window.error_band.retry.emit()
+
+    assert mock_fetcher.expanded == ["https://www.youtube.com/playlist?list=PL1"] * 2
+    assert window.playlist_card.isVisible()
