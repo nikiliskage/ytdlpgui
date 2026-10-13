@@ -37,11 +37,12 @@ def test_playlist_link_shows_checklist(window, mock_fetcher) -> None:  # type: i
 def test_queue_selected_items_into_playlist_folder(  # type: ignore[no-untyped-def]
     window, mock_fetcher, mock_runner_factory, mock_config
 ) -> None:
-    mock_config.set("max_concurrent_downloads", 5)
     mock_fetcher.playlist = _playlist()
     _fetch(window)
     window.playlist_card.set_checked(1, False)  # skip "Video 2"
     window.playlist_card.queue_btn.click()
+    assert len(mock_runner_factory.created) == 1  # one at a time, in playlist order
+    mock_runner_factory.created[0].finish(c.JobState.COMPLETED)
 
     started = [r.options for r in mock_runner_factory.created]
     assert [o.url for o in started] == ["https://x/v1", "https://x/v3"]

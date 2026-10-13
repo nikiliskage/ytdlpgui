@@ -2,7 +2,7 @@
 
 Every control writes through to the injected ``config`` (IConfig-like) on change.
 Sections: Binaries / Output / Subtitles & embedding / Performance (concurrent
-fragments + max concurrent downloads) / Cookies / Maintenance / About.
+fragments) / Cookies / Maintenance / About.
 """
 
 from __future__ import annotations
@@ -274,13 +274,6 @@ class SettingsPanel(QWidget):
             16,
             _as_int(self._get("concurrent_fragments", 4), 4),
             "concurrent_fragments",
-        )
-        self.max_downloads = self._slider_row(
-            "Max concurrent downloads",
-            1,
-            6,
-            _as_int(self._get("max_concurrent_downloads", 2), 2),
-            "max_concurrent_downloads",
         )
 
         # Cookies

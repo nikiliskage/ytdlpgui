@@ -41,13 +41,10 @@ _QSS_PATH = Path(__file__).parent / "resources" / "theme.qss"
 # centred content; wide enough that the 4-chip Video/Audio rows don't clip.
 _COLUMN_WIDTH = 740
 
-
-def _as_int(value: object, default: int) -> int:
-    """Coerce a config value (object) to int, falling back to default."""
-    try:
-        return int(str(value))
-    except (TypeError, ValueError):
-        return default
+# Downloads run strictly one after another. Parallel downloads (e.g. a whole
+# playlist) got YouTube to answer HTTP 403 for some of them; one at a time is
+# slower but reliable.
+_MAX_CONCURRENT = 1
 
 
 def load_qss(accent: str = "purple") -> str:
@@ -382,13 +379,8 @@ class MainWindow(QWidget):
         self._pump()
 
     def _pump(self) -> None:
-        """Start pending jobs until the concurrency limit is reached.
-
-        The limit is read from config on every pump so changing "Max concurrent
-        downloads" in Settings takes effect immediately (no restart).
-        """
-        max_concurrent = _as_int(self._cfg("max_concurrent_downloads", 2), 2)
-        while len(self._running) < max_concurrent and self._pending:
+        """Start the next pending job if nothing is downloading (queue order)."""
+        while len(self._running) < _MAX_CONCURRENT and self._pending:
             job_id, options = self._pending.pop(0)
             runner = self._runner_factory()
             self._runners[job_id] = runner
@@ -607,8 +599,6 @@ class MainWindow(QWidget):
             self.media_card.refresh_subtitles()
             self.playlist_card.refresh_dest()
             self.playlist_card.refresh_subtitles()
-            # A raised "max concurrent downloads" should start queued jobs now.
-            self._pump()
         self._layout_overlays()
 
     def _toggle_queue(self) -> None:

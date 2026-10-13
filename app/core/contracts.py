@@ -254,7 +254,6 @@ CONFIG_DEFAULTS: dict[str, object] = {
     "embed_thumbnail": False,
     "embed_metadata": False,
     "concurrent_fragments": 4,
-    "max_concurrent_downloads": 2,  # aynı anda en fazla N indirme
     "ytdlp_path": "",  # boş → otomatik çözüm (paths.py)
     "ffmpeg_path": "",
     "deno_path": "",  # boş → uygulama klasöründeki deno.exe (YouTube için JS runtime)
@@ -310,8 +309,8 @@ class IYtDlpRunner(Protocol):
 
 
 #: Her kuyruk işi için yeni bir tek-iş runner üretir. MainWindow bunu
-#: enjekte alır (gerçek `YtDlpRunner` fabrikası veya test mock'u) ve N=2
-#: eşzamanlı indirme için her aktif işe ayrı runner örnekler.
+#: enjekte alır (gerçek `YtDlpRunner` fabrikası veya test mock'u) ve her işe
+#: ayrı runner örnekler (indirmeler sırayla, tek tek çalışır).
 RunnerFactory = Callable[[], IYtDlpRunner]
 
 

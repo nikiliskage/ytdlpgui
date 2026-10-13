@@ -4,8 +4,8 @@ Buradaki mock'lar `app.core.contracts` arayüzlerini (Protocol) yapısal olarak
 karşılar; gerçek implementasyonlar gelmeden Stream A/B/C/D bunlara karşı test
 yazar. Kuyruk (MainWindow) yalnızca `set_callbacks(...)` + `start()` köprüsünü kullandığı
 için mock'lar saf Python'dur (Qt event-loop'u zorunlu değil) ve **kendiliğinden
-bitmez** — testler bitişi `finish()` ile elle tetikler; böylece N=2 eşzamanlılık
-yarışı deterministik test edilir.
+bitmez** — testler bitişi `finish()` ile elle tetikler; böylece sıralı (tek tek)
+indirme kuyruğu deterministik test edilir.
 """
 
 from __future__ import annotations

@@ -37,11 +37,11 @@ def test_update_message_failure() -> None:
     assert msg
 
 
-def test_slider_writes_max_concurrent(qtbot, mock_config) -> None:  # type: ignore[no-untyped-def]
+def test_no_max_concurrent_downloads_setting(qtbot, mock_config) -> None:  # type: ignore[no-untyped-def]
+    """Downloads always run one at a time, so there is nothing to configure."""
     panel = SettingsPanel(mock_config, reduced_motion=True)
     qtbot.addWidget(panel)
-    panel.max_downloads.setValue(4)
-    assert mock_config.get("max_concurrent_downloads") == 4
+    assert not hasattr(panel, "max_downloads")
 
 
 def test_output_dirs_write_to_config(qtbot, mock_config) -> None:  # type: ignore[no-untyped-def]

@@ -62,7 +62,7 @@ def test_runner_factory_alias_callable() -> None:
 
 def test_config_defaults_complete() -> None:
     d = c.CONFIG_DEFAULTS
-    assert d["max_concurrent_downloads"] == 2
+    assert "max_concurrent_downloads" not in d  # downloads always run one at a time
     assert d["audio_format"] == "opus"
     assert d["subtitle_langs"] == ["en", "tr"]
     assert d["accent_theme"] == "purple"
