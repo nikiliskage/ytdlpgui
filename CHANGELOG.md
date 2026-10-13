@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rename finished downloads** from the queue (inline, Enter/Esc). The extension is kept,
   invalid characters are replaced, and same-named subtitle/thumbnail files are renamed too; a
   name clash renames nothing and is reported in the row.
+- `tools/build_installer.ps1` builds the exe and the setup installer in one step: it finds
+  `ISCC.exe` itself (PATH, registry incl. per-user Inno Setup installs, default folders) and
+  passes the version from `app/__init__.py` to the installer script (`/DMyAppVersion`).
 
 ### Changed
 - yt-dlp / ffmpeg are looked up **only** in Settings → Binaries and the app's own (install)
