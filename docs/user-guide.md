@@ -3,7 +3,8 @@
 ## The omni-bar
 
 Paste a video URL and press **Fetch**. The app runs `yt-dlp -J` to read the
-video's real metadata and available formats, then shows a media card.
+video's real metadata and available formats, then shows a media card. A playlist link opens the
+playlist card instead (see [Playlists](#playlists)).
 
 ## Choosing what to download
 
@@ -19,6 +20,16 @@ The media card has three modes:
   YouTube and unreliable, so they aren't offered). Subtitle downloads skip the media and write
   only the chosen language.
 
+## Playlists
+
+- Paste a **playlist link** (e.g. `youtube.com/playlist?list=…`) and press **Fetch**: the playlist
+  card lists every video with a checkbox (all ticked; **Select all** toggles them).
+- A **video link that is part of a playlist** (`watch?v=…&list=…`) opens just that video; the
+  media card then offers **Open playlist**.
+- Pick one mode and quality for the whole selection, then **Add N to queue**. Each video becomes
+  its own queue job (cancel / retry individually) and is saved as
+  `<Video|Audio folder>\<Playlist name>\01 - <title>.<ext>` — numbered in playlist order.
+
 ## The download queue
 
 - Up to **2 concurrent** downloads; the rest wait and auto-start as slots free up.
@@ -27,6 +38,10 @@ The media card has three modes:
 - **Retry** re-runs the job. (Cancelled or failed jobs have their partial files removed, so a
   retry downloads again from the start.)
 - Failed downloads show yt-dlp's actual error line (full raw error on hover).
+- **Rename** (pencil icon on a finished job) edits the file name in place — **Enter** saves,
+  **Esc** cancels. The extension is kept, invalid characters are replaced, and subtitle /
+  thumbnail files with the same name are renamed too. If the name is taken, nothing is renamed
+  and the row says so.
 
 ## Cookies (sign-in / age-restricted)
 
@@ -46,7 +61,8 @@ being signed in. A one-time disclaimer is shown the first time you turn it on.
 
 All path fields below are **read-only — set them with Browse** (you can't mistype or paste a path).
 
-- **Binaries** — `yt-dlp.exe` / `ffmpeg.exe` (the app also finds them next to itself).
+- **Binaries** — `yt-dlp.exe` / `ffmpeg.exe`. Leave empty to use the ones next to the app; the
+  app never searches your PATH.
 - **Output** — separate **Video** and **Audio** folders; default `Documents\yt-dlp-gui\video` /
   `\audio`, Browse to change.
 - **Subtitles & embedding** — up to 2 languages; embed subtitles / thumbnail / metadata.

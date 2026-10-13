@@ -10,8 +10,9 @@ avoids antivirus/SmartScreen false positives and ffmpeg licensing concerns):
 | **yt-dlp.exe** | <https://github.com/yt-dlp/yt-dlp/releases> | Everything |
 | **ffmpeg.exe** | <https://www.gyan.dev/ffmpeg/builds/> | Merging video+audio and audio conversion |
 
-Put both **next to the app** — the app searches its own folder first — or point to them later in
-**Settings → Binaries**. (`C:\yt-dlp` and your PATH are also checked as fallbacks.)
+Put both **next to the app** (the install folder), or point to them later in
+**Settings → Binaries**. The app looks only in those two places — never in your PATH or any other
+folder.
 
 ## Install
 
