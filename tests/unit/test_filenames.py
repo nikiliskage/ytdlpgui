@@ -95,3 +95,22 @@ def test_rename_missing_file_or_empty_name(tmp_path: Path) -> None:
     media = _touch(tmp_path / "Clip.mp4")
     with pytest.raises(ValueError):
         rename_output(media, "  ...  ")
+
+
+def test_rename_failure_midway_rolls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A locked sidecar must not leave the media and its subtitle with different names."""
+    media = _touch(tmp_path / "Clip.mp4")
+    sub = _touch(tmp_path / "Clip.en.vtt")
+    real_rename = Path.rename
+
+    def flaky(self: Path, target: Path) -> Path:
+        if self.suffix == ".vtt":
+            raise PermissionError("locked")
+        return real_rename(self, target)
+
+    monkeypatch.setattr(Path, "rename", flaky)
+    with pytest.raises(PermissionError):
+        rename_output(media, "New")
+
+    assert media.is_file() and sub.is_file()
+    assert not (tmp_path / "New.mp4").exists()

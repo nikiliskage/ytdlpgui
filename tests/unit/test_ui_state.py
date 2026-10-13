@@ -41,6 +41,8 @@ def test_playlist_url_none_without_list_or_off_youtube() -> None:
     assert playlist_url("https://www.youtube.com/watch?v=abc") is None
     assert playlist_url("https://vimeo.com/123?list=PL1") is None
     assert playlist_url("not a url") is None
+    # Auto-generated mixes are not real playlists.
+    assert playlist_url("https://www.youtube.com/watch?v=abc&list=RDabc") is None
 
 
 def test_format_duration() -> None:

@@ -15,6 +15,13 @@ from app.core.contracts import PO_TOKEN_HELP_URL, AppError, ErrorKind
 
 _PATTERNS: list[tuple[re.Pattern[str], ErrorKind, str]] = [
     (
+        # The app passes --js-runtimes (for deno); yt-dlp releases before it
+        # existed reject the whole command line.
+        re.compile(r"no such option:?\s*--js-runtimes", re.IGNORECASE),
+        ErrorKind.UNKNOWN,
+        "This yt-dlp is too old for the app. Update it in Settings → Update yt-dlp.",
+    ),
+    (
         re.compile(r"Sign in to confirm your age", re.IGNORECASE),
         ErrorKind.AGE_RESTRICTED,
         "This video is age-restricted — it needs sign-in cookies.",

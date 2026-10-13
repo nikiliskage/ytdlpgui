@@ -137,3 +137,20 @@ def test_handle_dump_playlist_without_handler_is_an_error(sample_flat: dict) -> 
     errors: list[AppError] = []
     fetcher._handle_dump(json.dumps(sample_flat), "", lambda m, f: None, errors.append)
     assert len(errors) == 1 and "playlist" in errors[0].user_message
+
+
+def test_parse_playlist_items_skips_channel_tabs() -> None:
+    """A channel link lists its tabs; each would download a whole tab as one job."""
+    data: dict[str, object] = {
+        "entries": [
+            {
+                "_type": "url",
+                "ie_key": "YoutubeTab",
+                "url": "https://www.youtube.com/@x/videos",
+                "title": "x - Videos",
+            },
+            {"_type": "playlist", "url": "https://www.youtube.com/@x/shorts"},
+            {"_type": "url", "ie_key": "Youtube", "id": "v", "url": "https://x/v"},
+        ]
+    }
+    assert [i.id for i in _parse_playlist_items(data)] == ["v"]

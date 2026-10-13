@@ -36,7 +36,8 @@ def playlist_url(url: str) -> str | None:
     ``watch?v=ID&list=PL…`` opens the single video (the fetch uses
     ``--no-playlist``); this returns ``https://www.youtube.com/playlist?list=PL…``
     so the media card can offer "Open the playlist". ``None`` when the URL has
-    no playlist id or is not a YouTube link.
+    no playlist id, is not a YouTube link, or is an auto-generated mix
+    (``list=RD…``: endless, different per viewer — not a real playlist).
     """
     try:
         parts = urlsplit(url.strip())
@@ -46,7 +47,7 @@ def playlist_url(url: str) -> str | None:
     if host not in _YOUTUBE_HOSTS:
         return None
     list_id = (parse_qs(parts.query).get("list") or [""])[0].strip()
-    if not list_id:
+    if not list_id or list_id.startswith("RD"):
         return None
     return f"https://www.youtube.com/playlist?list={list_id}"
 

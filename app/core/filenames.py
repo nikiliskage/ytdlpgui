@@ -5,6 +5,7 @@ Shared by the queue's "Rename" action and the playlist subfolder naming.
 
 from __future__ import annotations
 
+import contextlib
 import re
 from pathlib import Path
 
@@ -101,6 +102,15 @@ def rename_output(path: Path, new_stem: str) -> Path:
     for _src, dst in moves:
         if dst.exists() and dst.resolve() != _src.resolve():
             raise FileExistsError(dst)
-    for src, dst in moves:
-        src.rename(dst)
+    done: list[tuple[Path, Path]] = []
+    try:
+        for src, dst in moves:
+            src.rename(dst)
+            done.append((src, dst))
+    except OSError:
+        # e.g. a sidecar is locked by a player: undo so the set stays paired.
+        for src, dst in reversed(done):
+            with contextlib.suppress(OSError):
+                dst.rename(src)
+        raise
     return moves[0][1]
