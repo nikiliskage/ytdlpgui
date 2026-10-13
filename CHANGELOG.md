@@ -32,7 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the splash checks for it. A 403 now explains this instead of saying "Network problem".
 - Dock items: right-click for **Rename…** / **Open folder** / **Show in queue**.
 - Queue panel: **Retry failed** re-queues every failed job at once (handy for a playlist's
-  temporary HTTP 403s) and **Clear failed** removes them, next to **Clear completed**.
+  temporary HTTP 403s) and **Clear failed** removes failed and canceled jobs, next to
+  **Clear completed**.
 - Installer: after installing, a page explains the three binaries (what, where to download,
   where to put them); the closing page lists any still missing from the install folder and offers
   to open it. The same guide is installed as `README - binaries.txt`. The ready page, EULA and

@@ -192,8 +192,12 @@ def test_retry_failed_requeues_only_failed_jobs(window, mock_runner_factory, moc
     assert len(window.dock.job_ids(c.JobState.COMPLETED)) == 1
 
 
-def test_clear_failed_removes_only_failed_jobs(window, mock_runner_factory, mock_config) -> None:  # type: ignore[no-untyped-def]
+def test_clear_failed_removes_failed_and_canceled_jobs(
+    window, mock_runner_factory, mock_config
+) -> None:  # type: ignore[no-untyped-def]
     _two_failed_one_done(window, mock_runner_factory, mock_config)
+    window.media_card.queue_btn.click()
+    mock_runner_factory.created[-1].finish(c.JobState.CANCELED)
 
     window.queue_panel.clear_failed_btn.click()
 
