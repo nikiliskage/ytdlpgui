@@ -20,7 +20,9 @@ import glob
 import os
 import subprocess
 import sys
+import tempfile
 import time
+from pathlib import Path
 
 from app.core.contracts import (
     AppError,
@@ -34,6 +36,7 @@ from app.core.contracts import (
     ProgressCallback,
 )
 from app.core.errors import map_stderr
+from app.core.filenames import SUBTITLE_EXTS
 from app.core.paths import YTDLP_NOT_FOUND_MESSAGE, find_ffmpeg, find_ytdlp
 
 try:
@@ -199,6 +202,11 @@ class YtDlpRunner(QObject):
         # Output paths yt-dlp announces for this job ("Destination:"/"Merging
         # formats into"); used to delete leftover partials on cancel/failure.
         self._dest_files: set[str] = set()
+        # Same paths in announcement order (fallback for the final file).
+        self._announced: list[str] = []
+        # yt-dlp appends each finished file's final path here (--print-to-file).
+        self._print_file: str = ""
+        self._output_files: list[Path] = []
 
     # ------------------------------------------------------------------
     # IYtDlpRunner interface
@@ -227,6 +235,8 @@ class YtDlpRunner(QObject):
         self._canceled = False
         self._reported = False
         self._dest_files = set()
+        self._announced = []
+        self._output_files = []
 
         if not _QT_AVAILABLE:  # pragma: no cover
             return
@@ -242,7 +252,14 @@ class YtDlpRunner(QObject):
             QTimer.singleShot(0, self, lambda: self._report(JobState.FAILED, error))
             return
 
-        args = build_command(options, ytdlp_path=ytdlp_path, ffmpeg_path=self._locate_ffmpeg())
+        fd, self._print_file = tempfile.mkstemp(prefix="ytdlpgui-", suffix=".txt")
+        os.close(fd)
+        args = build_command(
+            options,
+            ytdlp_path=ytdlp_path,
+            ffmpeg_path=self._locate_ffmpeg(),
+            print_file=self._print_file,
+        )
 
         process = QProcess(self)
         self._process = process
@@ -313,6 +330,7 @@ class YtDlpRunner(QObject):
             user_message="yt-dlp could not be started. Check its path in Settings → Binaries.",
             raw=self._process.errorString() if self._process is not None else "",
         )
+        self._remove_print_file()
         self._report(JobState.CANCELED if self._canceled else JobState.FAILED, error)
 
     def _on_process_finished(self, exit_code: int, exit_status: object) -> None:
@@ -340,8 +358,41 @@ class YtDlpRunner(QObject):
         # final file stays (yt-dlp already removed its own intermediates).
         if state is not JobState.COMPLETED:
             self._cleanup_partials()
+        else:
+            self._output_files = self._collect_outputs()
+        self._remove_print_file()
 
         self._report(state, error)
+
+    def output_files(self) -> list[Path]:
+        """Final file(s) of a COMPLETED run (empty otherwise / if unknown)."""
+        return list(self._output_files)
+
+    def _collect_outputs(self) -> list[Path]:
+        """Final paths from the --print-to-file list, else the last announced one.
+
+        The print file holds one ``after_move`` filepath per finished media file.
+        It stays empty when no media is post-processed (subtitle-only), so fall
+        back to the last path yt-dlp announced that exists on disk.
+        """
+        printed: list[Path] = []
+        if self._print_file:
+            with contextlib.suppress(OSError):
+                text = Path(self._print_file).read_text(encoding="utf-8")
+                printed = [Path(ln.strip()) for ln in text.splitlines() if ln.strip()]
+        found = [p for p in dict.fromkeys(printed) if p.is_file()]
+        if found:
+            return found
+        subs = [p for p in dict.fromkeys(map(Path, self._announced)) if p.is_file()]
+        if subs and all(p.suffix.lower() in SUBTITLE_EXTS for p in subs):
+            return subs  # subtitle-only run: every written subtitle file
+        return subs[-1:]
+
+    def _remove_print_file(self) -> None:
+        if self._print_file:
+            with contextlib.suppress(OSError):
+                os.remove(self._print_file)
+            self._print_file = ""
 
     def _report(self, state: JobState, error: AppError | None) -> None:
         """Invoke ``on_finished`` exactly once per ``start()``."""
@@ -380,18 +431,21 @@ class YtDlpRunner(QObject):
         on-disk partial is that path or ``<path>.part`` (plus ``.ytdl`` and
         ``.part-FragN`` fragment files).
         """
-        marker = "Destination: "
-        idx = line.find(marker)
-        if idx != -1:
-            path = line[idx + len(marker) :].strip().strip('"')
-            if path:
-                self._dest_files.add(path)
-            return
+        for marker in ("Destination: ", "Writing video subtitles to: "):
+            idx = line.find(marker)
+            if idx != -1:
+                self._record(line[idx + len(marker) :].strip().strip('"'))
+                return
         if "Merging formats into " in line:
             first = line.find('"')
             last = line.rfind('"')
             if first != -1 and last > first:
-                self._dest_files.add(line[first + 1 : last])
+                self._record(line[first + 1 : last])
+
+    def _record(self, path: str) -> None:
+        if path:
+            self._dest_files.add(path)
+            self._announced.append(path)
 
     def _cleanup_partials(self) -> None:
         """Delete this job's leftover files from the output folder.

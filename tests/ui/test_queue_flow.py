@@ -75,3 +75,51 @@ def test_clear_completed_removes_only_completed(window, mock_runner_factory) -> 
 
     assert len(window.dock.job_ids()) == 1
     assert window.dock.job_ids(c.JobState.RUNNING)
+
+
+def _completed_with_file(window, mock_runner_factory, path):  # type: ignore[no-untyped-def]
+    _load(window)
+    window.media_card.queue_btn.click()
+    runner = mock_runner_factory.created[-1]
+    runner.outputs = [path]
+    runner.finish(c.JobState.COMPLETED)
+    job_id = window.dock.job_ids()[-1]
+    return window.queue_panel.row(job_id)
+
+
+def test_rename_completed_download(window, mock_runner_factory, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    media = tmp_path / "Sample Video.mp4"
+    media.write_text("x")
+    row = _completed_with_file(window, mock_runner_factory, media)
+    assert row.output_name() == "Sample Video"
+
+    row.begin_rename()
+    assert row.is_renaming()
+    row._name_edit.setText("Renamed")  # noqa: SLF001
+    row._name_edit.returnPressed.emit()  # noqa: SLF001
+
+    assert (tmp_path / "Renamed.mp4").is_file()
+    assert not media.exists()
+    assert row.output_name() == "Renamed"
+    assert not row.is_renaming()
+
+
+def test_rename_clash_shows_inline_error(window, mock_runner_factory, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    media = tmp_path / "A.mp4"
+    media.write_text("x")
+    (tmp_path / "B.mp4").write_text("taken")
+    row = _completed_with_file(window, mock_runner_factory, media)
+
+    row.rename.emit(row.job_id, "B")
+
+    assert media.is_file()
+    assert "already exists" in row._meta.text()  # noqa: SLF001
+    assert row.output_name() == "A"
+
+
+def test_rename_hidden_without_known_output(window, mock_runner_factory) -> None:  # type: ignore[no-untyped-def]
+    _load(window)
+    window.media_card.queue_btn.click()
+    mock_runner_factory.created[0].finish(c.JobState.COMPLETED)  # no output path
+    row = window.queue_panel.row(window.dock.job_ids()[0])
+    assert row.output_name() is None

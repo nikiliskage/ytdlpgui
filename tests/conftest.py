@@ -33,6 +33,7 @@ class MockRunner:
     options: c.DownloadOptions | None = None
     started: bool = False
     canceled: bool = False
+    outputs: list[Path] = field(default_factory=list)  # output_files() after finish
     _on_progress: c.ProgressCallback | None = None
     _on_log: c.LogCallback | None = None
     _on_finished: c.FinishedCallback | None = None
@@ -54,6 +55,9 @@ class MockRunner:
 
     def cancel(self) -> None:
         self.canceled = True
+
+    def output_files(self) -> list[Path]:
+        return list(self.outputs)
 
     # Test-facing triggers ----------------------------------------------------
     def emit_progress(self, progress: c.Progress) -> None:
