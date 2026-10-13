@@ -123,3 +123,16 @@ def test_rename_hidden_without_known_output(window, mock_runner_factory) -> None
     mock_runner_factory.created[0].finish(c.JobState.COMPLETED)  # no output path
     row = window.queue_panel.row(window.dock.job_ids()[0])
     assert row.output_name() is None
+
+
+def test_dock_rename_opens_queue_and_edits_row(window, mock_runner_factory, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    media = tmp_path / "Song.mp3"
+    media.write_text("x")
+    row = _completed_with_file(window, mock_runner_factory, media)
+    job_id = row.job_id
+    assert job_id in window.dock._renamable  # noqa: SLF001
+
+    window.dock.rename_requested.emit(job_id)
+
+    assert window.queue_panel.is_open()
+    assert row.is_renaming()

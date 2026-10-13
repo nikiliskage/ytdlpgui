@@ -178,6 +178,8 @@ class MainWindow(QWidget):
         # dock
         self.dock = Dock(self._reduced_motion)
         self.dock.item_clicked.connect(lambda _id: self._open_queue(True))
+        self.dock.rename_requested.connect(self._begin_rename)
+        self.dock.open_folder_requested.connect(self._open_folder)
         self.dock.expand_clicked.connect(self._toggle_queue)
         root_layout.addWidget(self.dock)
 
@@ -509,6 +511,9 @@ class MainWindow(QWidget):
             # Rename needs exactly one known file (not e.g. two subtitle files).
             single = len(outputs) == 1 and state == c.JobState.COMPLETED
             row.set_output_name(outputs[0].stem if single else None)
+            self.dock.set_renamable(job_id, single)
+            if state == c.JobState.COMPLETED and not single:
+                row.setToolTip("Rename needs a single output file.")
         self._running.discard(job_id)
         self._runners.pop(job_id, None)
         self._pump()
@@ -534,7 +539,16 @@ class MainWindow(QWidget):
         self._job_outputs[job_id] = [new_path]
         row.set_output_name(new_path.stem)
         row.set_title(new_path.stem)
+        self.dock.set_title(job_id, new_path.stem)
         row.show_note(f"renamed to {new_path.name}")
+
+    def _begin_rename(self, job_id: str) -> None:
+        """Dock "Rename…": open the queue and edit that row's name inline."""
+        row = self.queue_panel.row(job_id)
+        if row is None:
+            return
+        self._open_queue(True)
+        row.begin_rename()
 
     def _clear_completed(self) -> None:
         for job_id in self.dock.job_ids(c.JobState.COMPLETED):

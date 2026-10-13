@@ -227,6 +227,9 @@ QPushButton#AdvToggle:hover { color: #e8e8ee; }
 }
 .dock-item { background: transparent; border: none; border-radius: 10px; }
 .dock-item:hover { background: rgba(255,255,255,0.04); }
+/* Item strip scrolls sideways; keep it transparent so the dock shows through. */
+#DockScroll { background: transparent; border: none; }
+#DockScroll > QWidget, #DockStrip { background: transparent; }
 QLabel#DockStat { font-size: 11px; color: #6b6b78; }
 QPushButton#DockExpand {
     background: #24242c;
