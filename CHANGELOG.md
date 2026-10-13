@@ -43,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of failing every fetch/download with a generic error.
 
 ### Changed
+- Downloads now run **one at a time**, in queue order. Several parallel downloads (e.g. a whole
+  playlist) made YouTube answer HTTP 403 for some of them. The "Max concurrent downloads"
+  setting is gone; a value saved by 0.1.0 is ignored.
 - yt-dlp / ffmpeg are looked up **only** in Settings → Binaries and the app's own (install)
   folder. `C:\yt-dlp` and PATH are no longer searched; a missing yt-dlp now fails the fetch /
   download with a clear message instead of trying whatever `yt-dlp` is on PATH.

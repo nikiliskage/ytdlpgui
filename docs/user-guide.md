@@ -35,9 +35,11 @@ The media card has three modes:
 
 ## The download queue
 
-- Up to **2 concurrent** downloads; the rest wait and auto-start as slots free up.
+- Downloads run **one at a time, in queue order**; the next one starts as soon as the current
+  one finishes (done, failed or cancelled). Downloading several videos at once made YouTube
+  refuse some of them (HTTP 403), so the queue trades speed for reliability.
 - **Cancel** a job — its partial files (`.part`, `.ytdl`, fragments) are cleaned up, scoped to
-  that job so a concurrent download is never touched.
+  that job so other files in the folder are never touched.
 - **Retry** re-runs the job. (Cancelled or failed jobs have their partial files removed, so a
   retry downloads again from the start.)
 - Failed downloads show yt-dlp's actual error line (full raw error on hover).
@@ -74,7 +76,7 @@ All path fields below are **read-only — set them with Browse** (you can't mist
 - **Output** — separate **Video** and **Audio** folders; default `Documents\yt-dlp-gui\video` /
   `\audio`, Browse to change.
 - **Subtitles & embedding** — up to 2 languages; embed subtitles / thumbnail / metadata.
-- **Performance** — concurrent fragments + max concurrent downloads (takes effect immediately).
+- **Performance** — concurrent fragments (parallel pieces *within* one download).
 - **Cookies** — enable + choose Firefox or a cookies.txt file.
 - **About** — app version, author credit, and a link to the yt-dlp project.
 

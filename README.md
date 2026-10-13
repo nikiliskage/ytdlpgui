@@ -81,8 +81,9 @@ powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1
 ## Features
 - Real-format selector (quality chips + advanced format table); video downloads prefer AAC audio
   so the resulting mp4 plays everywhere
-- Download queue (up to 2 concurrent), cancel / retry; cancelling (or a failed job) cleans up the
-  partial files it left behind
+- Download queue — one download at a time, in order (reliable with YouTube); cancel / retry, plus
+  **Retry failed** / **Clear failed** for the whole queue; cancelling (or a failed job) cleans up
+  the partial files it left behind
 - **Playlists** — paste a playlist link (or open the playlist from a video that's part of one),
   tick the videos you want, and each is queued as its own job into
   `<Video|Audio>\<Playlist name>\01 - Title.ext`

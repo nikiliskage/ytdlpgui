@@ -54,8 +54,8 @@ downloads prefer AAC audio so the resulting mp4 plays everywhere.
 <span class="ytg-icon">:material-tray-full:</span>
 <div class="ytg-body" markdown>
 ### Download queue
-Up to 2 concurrent downloads with cancel and retry. Cancelling (or a failed job) cleans up the
-partial files it left behind.
+Downloads run one at a time, in order, with cancel and retry (or **Retry failed** for all at
+once). Cancelling (or a failed job) cleans up the partial files it left behind.
 </div>
 </div>
 
@@ -122,6 +122,8 @@ Update yt-dlp itself (`yt-dlp -U`) from inside the app and see the result inline
 ![First launch — paste a link](assets/screenshots/empty.png)
 
 ![Fetched media — pick a format and download](assets/screenshots/app.png)
+
+![Playlist — tick the videos you want](assets/screenshots/playlist.png)
 
 ![Settings](assets/screenshots/settings.png)
 

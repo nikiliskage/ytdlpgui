@@ -40,10 +40,11 @@ tests/                 # pytest (unit / integration[@network] / ui[pytest-qt]) +
 1. User pastes a URL → **FormatFetcher** runs `yt-dlp -J` → `(MediaInfo, list[FormatInfo])`,
    or a `PlaylistInfo` (shown as a checklist) when the link is a playlist.
 2. User picks a quality/format → a `DownloadOptions` is built and queued by **MainWindow**.
-3. For each free slot (`max_concurrent_downloads`, re-read on every pump so Settings apply
-   immediately), the queue uses a **RunnerFactory** to create a **YtDlpRunner**, wires
-   `set_callbacks(...)`, and `start()`s it. The runner reports `on_finished` exactly once —
-   including when yt-dlp fails to start — so a slot is always freed.
+3. Downloads run **one at a time** (`_MAX_CONCURRENT = 1` in `main_window.py`; not a
+   setting). When nothing is running, the queue uses a **RunnerFactory** to create a
+   **YtDlpRunner** for the next pending job, wires `set_callbacks(...)`, and `start()`s it. The
+   runner reports `on_finished` exactly once — including when yt-dlp fails to start — so the
+   queue always moves on to the next job.
 4. The runner parses `--progress-template` lines into `Progress` and reports via callbacks;
    `stderr` is mapped to `AppError` on failure.
 5. The UI's **Download Dock** renders progress (QPainter rings); the queue panel lists details.
