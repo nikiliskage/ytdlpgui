@@ -70,3 +70,9 @@ def test_http_403_points_to_deno() -> None:
     """YouTube's 403 (unsolved JS challenge) gets an actionable message, not 'Network'."""
     err = map_stderr("ERROR: unable to download video data: HTTP Error 403: Forbidden")
     assert "403" in err.user_message and "deno" in err.user_message
+
+
+def test_old_ytdlp_without_js_runtimes_says_update() -> None:
+    """An outdated yt-dlp rejects --js-runtimes; tell the user to update it."""
+    err = map_stderr("yt-dlp.exe: error: no such option: --js-runtimes")
+    assert "too old" in err.user_message and "Update" in err.user_message

@@ -140,7 +140,9 @@ def _parse_playlist_items(data: dict[str, object]) -> list[PlaylistItem]:
 
     ``index`` is the entry's position in the playlist (``playlist_index`` when
     yt-dlp reports it, else its 1-based order). Entries without a URL are
-    skipped — they can't be downloaded (e.g. deleted/private videos).
+    skipped — they can't be downloaded (e.g. deleted/private videos). So are
+    nested playlists (a channel link lists its Videos/Shorts/Live *tabs*): each
+    would become one job that downloads a whole tab.
     """
     entries_val = data.get("entries")
     entries: list[object] = list(entries_val) if isinstance(entries_val, list) else []
@@ -150,7 +152,7 @@ def _parse_playlist_items(data: dict[str, object]) -> list[PlaylistItem]:
             continue
         entry: dict[str, object] = entry_raw
         url = str(entry.get("url") or entry.get("webpage_url") or "")
-        if not url:
+        if not url or _is_nested_playlist(entry):
             continue
         result.append(
             PlaylistItem(
@@ -162,6 +164,11 @@ def _parse_playlist_items(data: dict[str, object]) -> list[PlaylistItem]:
             )
         )
     return result
+
+
+def _is_nested_playlist(entry: dict[str, object]) -> bool:
+    """True for a flat entry that is itself a playlist (e.g. a channel tab)."""
+    return entry.get("_type") == "playlist" or entry.get("ie_key") == "YoutubeTab"
 
 
 def _parse_playlist_info(data: dict[str, object]) -> PlaylistInfo:
@@ -304,6 +311,20 @@ class FormatFetcher(QObject):
         generation = self._generation
         self._stop_current()
 
+        ytdlp = self._locate_ytdlp()
+        if ytdlp is None:
+            # Never fall back to a bare "yt-dlp" (QProcess would search PATH).
+            # Report asynchronously (like a real run) and create no process.
+            message = f"ERROR: {YTDLP_NOT_FOUND_MESSAGE}"
+
+            def _not_found() -> None:
+                if generation == self._generation:
+                    self._generation += 1
+                    on_finish("", message)
+
+            QTimer.singleShot(0, self, _not_found)
+            return
+
         process = QProcess(self)
         self._process = process
         stdout_buf: list[str] = []
@@ -350,13 +371,6 @@ class FormatFetcher(QObject):
                 "ERROR: Fetch timed out. The site may be slow or blocked, "
                 "or the video may need cookies (Settings → Cookies).",
             )
-
-        ytdlp = self._locate_ytdlp()
-        if ytdlp is None:
-            # Never fall back to a bare "yt-dlp" (QProcess would search PATH).
-            message = f"ERROR: {YTDLP_NOT_FOUND_MESSAGE}"
-            QTimer.singleShot(0, self, lambda: _finish_once("", message))
-            return
 
         timer.timeout.connect(_timeout)
         process.readyReadStandardOutput.connect(_read_out)
