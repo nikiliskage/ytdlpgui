@@ -13,7 +13,7 @@
 ; Overridable from the command line (/DMyAppVersion=...); keep in sync with
 ; app\__init__.py when compiling by hand.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.0"
+  #define MyAppVersion "0.2.0"
 #endif
 #define MyAppPublisher "nikiliskage"
 #define MyAppURL "https://github.com/nikiliskage/ytdlpgui"

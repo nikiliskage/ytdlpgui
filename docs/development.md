@@ -50,7 +50,7 @@ Manual equivalent:
 
 ```powershell
 pyinstaller ytdlpgui.spec
-& "<Inno Setup 6>\ISCC.exe" /DMyAppVersion=0.1.0 installer\ytdlpgui.iss
+& "<Inno Setup 6>\ISCC.exe" /DMyAppVersion=0.2.0 installer\ytdlpgui.iss
 ```
 
 ## Building these docs
