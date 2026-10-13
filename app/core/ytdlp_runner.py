@@ -34,10 +34,10 @@ from app.core.contracts import (
     ProgressCallback,
 )
 from app.core.errors import map_stderr
-from app.core.paths import find_ffmpeg, find_ytdlp
+from app.core.paths import YTDLP_NOT_FOUND_MESSAGE, find_ffmpeg, find_ytdlp
 
 try:
-    from PySide6.QtCore import QObject, QProcess, Signal
+    from PySide6.QtCore import QObject, QProcess, QTimer, Signal
 
     _QT_AVAILABLE = True
 except ImportError:  # pragma: no cover
@@ -231,9 +231,18 @@ class YtDlpRunner(QObject):
         if not _QT_AVAILABLE:  # pragma: no cover
             return
 
-        args = build_command(
-            options, ytdlp_path=self._locate_ytdlp(), ffmpeg_path=self._locate_ffmpeg()
-        )
+        ytdlp_path = self._locate_ytdlp()
+        if ytdlp_path is None:
+            # Never fall back to a bare "yt-dlp" (QProcess would search PATH).
+            # Report asynchronously, like a real run, so callers see one flow.
+            error = AppError(
+                kind=ErrorKind.UNKNOWN,
+                user_message=YTDLP_NOT_FOUND_MESSAGE,
+            )
+            QTimer.singleShot(0, self, lambda: self._report(JobState.FAILED, error))
+            return
+
+        args = build_command(options, ytdlp_path=ytdlp_path, ffmpeg_path=self._locate_ffmpeg())
 
         process = QProcess(self)
         self._process = process
@@ -419,12 +428,12 @@ class YtDlpRunner(QObject):
         except Exception:
             return ""
 
-    def _locate_ytdlp(self) -> str:
-        """Configured path → app folder → C:\\yt-dlp → PATH, else the bare name."""
+    def _locate_ytdlp(self) -> str | None:
+        """Configured path, else the app's install folder; None if neither has it."""
         found = find_ytdlp(self._configured("ytdlp_path"))
-        return str(found) if found else "yt-dlp"
+        return str(found) if found else None
 
     def _locate_ffmpeg(self) -> str:
-        """Same order for ffmpeg; empty string lets yt-dlp auto-detect."""
+        """Same order for ffmpeg; empty string lets yt-dlp use its own lookup."""
         found = find_ffmpeg(self._configured("ffmpeg_path"))
         return str(found) if found else ""

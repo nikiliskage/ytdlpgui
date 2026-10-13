@@ -146,56 +146,53 @@ def test_ffmpeg_version_returns_none_on_oserror(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# resolve_ytdlp — resolution order
+# resolve_ytdlp / resolve_ffmpeg — config path, then the app folder only
 # ---------------------------------------------------------------------------
 
 
+def _ok_version() -> MagicMock:
+    result = MagicMock()
+    result.returncode = 0
+    result.stdout = "2026.01.01"
+    return result
+
+
 def test_resolve_ytdlp_uses_config_path_first(tmp_path: Path) -> None:
-    """When config_path points to a real file, it is used without checking PATH."""
+    """A configured path wins over a binary beside the app."""
     explicit_path = tmp_path / "my_ytdlp" / "yt-dlp.exe"
     explicit_path.parent.mkdir(parents=True)
     explicit_path.write_text("fake")
-
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    mock_result.stdout = "2026.01.01"
+    (tmp_path / "yt-dlp.exe").write_text("fake")
 
     with (
-        patch("app.core.paths.subprocess.run", return_value=mock_result),
-        patch("app.core.paths._YTDLP_DEFAULT_DIR", tmp_path / "nonexistent"),
+        patch("app.core.paths.subprocess.run", return_value=_ok_version()),
+        patch("app.core.paths.app_binary_dir", return_value=tmp_path),
     ):
         status = resolve_ytdlp(config_path=str(explicit_path))
 
     assert status.found is True
     assert status.path == explicit_path
+    assert status.version == "2026.01.01"
 
 
-def test_resolve_ytdlp_falls_back_to_path(tmp_path: Path) -> None:
-    """When config_path is empty and default dir doesn't exist, shutil.which is used."""
-    which_binary = tmp_path / "yt-dlp.exe"
-    which_binary.write_text("fake")
-
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    mock_result.stdout = "2026.01.01"
+def test_resolve_ytdlp_finds_binary_beside_app(tmp_path: Path) -> None:
+    """With no configured path, the install folder (app_binary_dir) is used."""
+    beside = tmp_path / "yt-dlp.exe"
+    beside.write_text("fake")
 
     with (
-        patch("app.core.paths.shutil.which", return_value=str(which_binary)),
-        patch("app.core.paths._YTDLP_DEFAULT_DIR", tmp_path / "nonexistent_dir"),
-        patch("app.core.paths.subprocess.run", return_value=mock_result),
+        patch("app.core.paths.subprocess.run", return_value=_ok_version()),
+        patch("app.core.paths.app_binary_dir", return_value=tmp_path),
     ):
         status = resolve_ytdlp(config_path="")
 
     assert status.found is True
-    assert status.path == which_binary
+    assert status.path == beside
 
 
-def test_resolve_ytdlp_not_found() -> None:
+def test_resolve_ytdlp_not_found(tmp_path: Path) -> None:
     """resolve_ytdlp returns found=False with a helpful message when binary is absent."""
-    with (
-        patch("app.core.paths.shutil.which", return_value=None),
-        patch("app.core.paths._YTDLP_DEFAULT_DIR", Path("/nonexistent_dir_xyz_abc")),
-    ):
+    with patch("app.core.paths.app_binary_dir", return_value=tmp_path):
         status = resolve_ytdlp(config_path="")
 
     assert status.found is False
@@ -204,67 +201,72 @@ def test_resolve_ytdlp_not_found() -> None:
     assert status.download_url  # download URL provided
 
 
-def test_resolve_ytdlp_prefers_default_dir_over_path(tmp_path: Path) -> None:
-    """Default-dir binary is preferred over PATH when both exist."""
-    default_dir_binary = tmp_path / "yt-dlp.exe"
-    default_dir_binary.write_text("fake")
-
-    path_binary = tmp_path / "path_ytdlp" / "yt-dlp.exe"
-    path_binary.parent.mkdir(parents=True)
-    path_binary.write_text("fake")
-
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    mock_result.stdout = "2026.01.01"
-
-    with (
-        patch("app.core.paths.shutil.which", return_value=str(path_binary)),
-        patch("app.core.paths._YTDLP_DEFAULT_DIR", tmp_path),
-        patch("app.core.paths.subprocess.run", return_value=mock_result),
-    ):
-        status = resolve_ytdlp(config_path="")
-
-    assert status.found is True
-    # Should pick up the default_dir binary (yt-dlp.exe candidate before PATH)
-    assert status.path == default_dir_binary
-
-
-# ---------------------------------------------------------------------------
-# resolve_ffmpeg — resolution order
-# ---------------------------------------------------------------------------
-
-
 def test_resolve_ffmpeg_uses_config_path_first(tmp_path: Path) -> None:
-    """Explicit config_path is tried first for ffmpeg."""
     explicit_path = tmp_path / "custom_ffmpeg" / "ffmpeg.exe"
     explicit_path.parent.mkdir(parents=True)
     explicit_path.write_text("fake")
 
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    mock_result.stdout = "ffmpeg version 7.1 Copyright\n"
-    mock_result.stderr = ""
-
+    result = MagicMock()
+    result.stdout = "ffmpeg version 7.1 Copyright"
+    result.stderr = ""
     with (
-        patch("app.core.paths.subprocess.run", return_value=mock_result),
-        patch("app.core.paths._YTDLP_DEFAULT_DIR", tmp_path / "nonexistent"),
+        patch("app.core.paths.subprocess.run", return_value=result),
+        patch("app.core.paths.app_binary_dir", return_value=tmp_path / "nonexistent"),
     ):
         status = resolve_ffmpeg(config_path=str(explicit_path))
 
     assert status.found is True
     assert status.path == explicit_path
+    assert status.version == "7.1"
 
 
-def test_resolve_ffmpeg_not_found() -> None:
-    """resolve_ffmpeg returns found=False when binary is absent everywhere."""
-    with (
-        patch("app.core.paths.shutil.which", return_value=None),
-        patch("app.core.paths._YTDLP_DEFAULT_DIR", Path("/nonexistent_dir_xyz_abc")),
-    ):
+def test_resolve_ffmpeg_not_found(tmp_path: Path) -> None:
+    with patch("app.core.paths.app_binary_dir", return_value=tmp_path):
         status = resolve_ffmpeg(config_path="")
 
     assert status.found is False
-    assert status.download_url  # download URL provided
+    assert status.path is None
+
+
+# ---------------------------------------------------------------------------
+# find_ytdlp / find_ffmpeg — locate without running the binary
+# ---------------------------------------------------------------------------
+
+
+def test_find_ytdlp_prefers_config_path_and_never_runs_it(tmp_path: Path) -> None:
+    """The configured path wins, and no subprocess (--version) is spawned."""
+    explicit = tmp_path / "custom" / "yt-dlp.exe"
+    explicit.parent.mkdir()
+    explicit.write_text("fake")
+    (tmp_path / "yt-dlp.exe").write_text("fake")
+
+    with (
+        patch("app.core.paths.app_binary_dir", return_value=tmp_path),
+        patch("app.core.paths.subprocess.run") as run,
+    ):
+        assert find_ytdlp(str(explicit)) == explicit
+    run.assert_not_called()
+
+
+def test_find_ytdlp_missing_config_path_falls_back_to_app_dir(tmp_path: Path) -> None:
+    """A stale configured path is skipped in favour of the binary beside the app."""
+    beside = tmp_path / "yt-dlp.exe"
+    beside.write_text("fake")
+    with patch("app.core.paths.app_binary_dir", return_value=tmp_path):
+        assert find_ytdlp(str(tmp_path / "gone.exe")) == beside
+
+
+def test_find_ignores_path_and_legacy_folder(tmp_path: Path) -> None:
+    """Binaries on PATH (or in C:\\yt-dlp) are never picked up."""
+    on_path = tmp_path / "elsewhere" / "yt-dlp.exe"
+    on_path.parent.mkdir()
+    on_path.write_text("fake")
+    with (
+        patch("shutil.which", return_value=str(on_path)),
+        patch("app.core.paths.app_binary_dir", return_value=tmp_path / "install"),
+    ):
+        assert find_ytdlp("") is None
+        assert find_ffmpeg("") is None
 
 
 # ---------------------------------------------------------------------------
@@ -299,46 +301,3 @@ def test_update_ytdlp_failure(tmp_path: Path) -> None:
 
     assert ok is False
     assert output  # non-empty error message
-
-
-# ---------------------------------------------------------------------------
-# find_ytdlp / find_ffmpeg — locate without running the binary
-# ---------------------------------------------------------------------------
-
-
-def test_find_ytdlp_prefers_config_path_and_never_runs_it(tmp_path: Path) -> None:
-    """The configured path wins, and no subprocess (--version) is spawned."""
-    explicit = tmp_path / "custom" / "yt-dlp.exe"
-    explicit.parent.mkdir()
-    explicit.write_text("fake")
-    on_path = tmp_path / "yt-dlp.exe"
-    on_path.write_text("fake")
-
-    with (
-        patch("app.core.paths.shutil.which", return_value=str(on_path)),
-        patch("app.core.paths._YTDLP_DEFAULT_DIR", tmp_path / "nonexistent"),
-        patch("app.core.paths.subprocess.run") as run,
-    ):
-        assert find_ytdlp(str(explicit)) == explicit
-    run.assert_not_called()
-
-
-def test_find_ytdlp_missing_config_path_falls_back(tmp_path: Path) -> None:
-    """A stale configured path is skipped in favour of the next candidate."""
-    on_path = tmp_path / "yt-dlp.exe"
-    on_path.write_text("fake")
-    with (
-        patch("app.core.paths.shutil.which", return_value=str(on_path)),
-        patch("app.core.paths._YTDLP_DEFAULT_DIR", tmp_path / "nonexistent"),
-        patch("app.core.paths.app_binary_dir", return_value=tmp_path / "nonexistent"),
-    ):
-        assert find_ytdlp(str(tmp_path / "gone.exe")) == on_path
-
-
-def test_find_ffmpeg_not_found_returns_none() -> None:
-    with (
-        patch("app.core.paths.shutil.which", return_value=None),
-        patch("app.core.paths._YTDLP_DEFAULT_DIR", Path("/nonexistent_dir_xyz_abc")),
-        patch("app.core.paths.app_binary_dir", return_value=Path("/nonexistent_dir_xyz_abc")),
-    ):
-        assert find_ffmpeg("") is None

@@ -22,7 +22,7 @@ from app.core.contracts import (
     PlaylistItem,
 )
 from app.core.errors import map_stderr
-from app.core.paths import find_ytdlp
+from app.core.paths import YTDLP_NOT_FOUND_MESSAGE, find_ytdlp
 
 try:
     from PySide6.QtCore import QObject, QProcess, QTimer
@@ -317,12 +317,19 @@ class FormatFetcher(QObject):
                 "or the video may need cookies (Settings → Cookies).",
             )
 
+        ytdlp = self._locate_ytdlp()
+        if ytdlp is None:
+            # Never fall back to a bare "yt-dlp" (QProcess would search PATH).
+            message = f"ERROR: {YTDLP_NOT_FOUND_MESSAGE}"
+            QTimer.singleShot(0, self, lambda: _finish_once("", message))
+            return
+
         timer.timeout.connect(_timeout)
         process.readyReadStandardOutput.connect(_read_out)
         process.readyReadStandardError.connect(_read_err)
         process.finished.connect(_finished)
         process.errorOccurred.connect(_error)
-        process.start(self._locate_ytdlp(), extra_args)
+        process.start(ytdlp, extra_args)
         timer.start(_FETCH_TIMEOUT_MS)
 
     # ------------------------------------------------------------------
@@ -407,8 +414,8 @@ class FormatFetcher(QObject):
     # Helpers
     # ------------------------------------------------------------------
 
-    def _locate_ytdlp(self) -> str:
-        """Configured path → app folder → C:\\yt-dlp → PATH, else the bare name."""
+    def _locate_ytdlp(self) -> str | None:
+        """Configured path, else the app's install folder; None if neither has it."""
         configured = ""
         if self._config is not None:
             try:
@@ -416,4 +423,4 @@ class FormatFetcher(QObject):
             except Exception:
                 configured = ""
         found = find_ytdlp(configured)
-        return str(found) if found else "yt-dlp"
+        return str(found) if found else None
