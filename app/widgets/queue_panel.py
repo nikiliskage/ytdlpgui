@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+from collections.abc import Callable
 
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QSize, Qt, Signal
 from PySide6.QtGui import QFocusEvent, QFont, QFontMetrics, QKeyEvent, QResizeEvent
@@ -271,6 +272,8 @@ class QueuePanel(QWidget):
     """Overlay panel anchored to the dock top; slides up + fades."""
 
     clear_completed = Signal()
+    retry_failed = Signal()
+    clear_failed = Signal()
 
     def __init__(self, reduced_motion: bool = False, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -297,11 +300,11 @@ class QueuePanel(QWidget):
         self._count.setObjectName("QpCount")
         head.addWidget(self._count)
         head.addStretch(1)
-        clear = QPushButton("Clear completed")
-        clear.setObjectName("QpClear")
-        clear.setCursor(Qt.CursorShape.PointingHandCursor)
-        clear.clicked.connect(self.clear_completed.emit)
-        head.addWidget(clear)
+        self.retry_failed_btn = self._head_btn("Retry failed", self.retry_failed.emit)
+        self.clear_failed_btn = self._head_btn("Clear failed", self.clear_failed.emit)
+        self.clear_completed_btn = self._head_btn("Clear completed", self.clear_completed.emit)
+        for btn in (self.retry_failed_btn, self.clear_failed_btn, self.clear_completed_btn):
+            head.addWidget(btn)
         layout.addWidget(self._head)
 
         # Rows live in a scroll area so a long queue scrolls instead of the
@@ -322,6 +325,15 @@ class QueuePanel(QWidget):
         self._opacity_anim = QPropertyAnimation(self, b"windowOpacity", self)
         self._opacity_anim.setDuration(1 if reduced_motion else 300)
         self._opacity_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+    @staticmethod
+    def _head_btn(text: str, slot: Callable[[], object]) -> QPushButton:
+        """Text-only header action (same look for every bulk action)."""
+        btn = QPushButton(text)
+        btn.setObjectName("QpClear")
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.clicked.connect(slot)
+        return btn
 
     def add_row(self, job_id: str, title: str) -> QueueRow:
         row = QueueRow(job_id, title)

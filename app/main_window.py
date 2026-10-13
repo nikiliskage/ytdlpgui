@@ -89,6 +89,9 @@ class MainWindow(QWidget):
         self._job_options: dict[str, c.DownloadOptions] = {}
         # Final file(s) of each COMPLETED job (from the runner), for Rename.
         self._job_outputs: dict[str, list[Path]] = {}
+        # Playlist being expanded via "Open playlist" (so Retry re-expands it
+        # instead of re-fetching the single video); None for a plain fetch.
+        self._expanding_url: str | None = None
 
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
@@ -192,6 +195,8 @@ class MainWindow(QWidget):
 
         self.queue_panel = QueuePanel(self._reduced_motion, root)
         self.queue_panel.clear_completed.connect(self._clear_completed)
+        self.queue_panel.retry_failed.connect(self._retry_failed)
+        self.queue_panel.clear_failed.connect(self._clear_failed)
         self.queue_panel.setVisible(False)
 
         self.settings_panel = SettingsPanel(self._config, self._reduced_motion, root)
@@ -219,6 +224,7 @@ class MainWindow(QWidget):
     def _on_fetch(self, url: str) -> None:
         self.state.url = url
         self.state.playlist = None
+        self._expanding_url = None
         self._show_loading()
         self._fetcher.fetch_formats(
             url, self._on_fetch_done, self._on_fetch_error, on_playlist=self._on_playlist_loaded
@@ -239,6 +245,10 @@ class MainWindow(QWidget):
         url = playlist_url(self.state.url)
         if url is None:
             return
+        self._expand_playlist(url)
+
+    def _expand_playlist(self, url: str) -> None:
+        self._expanding_url = url
         self._show_loading()
         self._fetcher.expand_playlist(url, self._on_playlist_loaded, self._on_fetch_error)
 
@@ -297,7 +307,9 @@ class MainWindow(QWidget):
         self.error_band.setVisible(False)
 
     def _retry(self) -> None:
-        if self.state.url:
+        if self._expanding_url:
+            self._expand_playlist(self._expanding_url)
+        elif self.state.url:
             self._on_fetch(self.state.url)
 
     # -- queue ----------------------------------------------------------------
@@ -394,11 +406,16 @@ class MainWindow(QWidget):
 
     # -- queue row actions ----------------------------------------------------
     def _open_folder(self, job_id: str) -> None:
-        opts = self._job_options.get(job_id)
-        if opts is None:
-            return
-        target = opts.target_dir()
-        target.mkdir(parents=True, exist_ok=True)
+        # Prefer the folder the finished file is really in; else the configured one.
+        outputs = self._job_outputs.get(job_id) or []
+        if outputs and outputs[0].parent.is_dir():
+            target = outputs[0].parent
+        else:
+            opts = self._job_options.get(job_id)
+            if opts is None:
+                return
+            target = opts.target_dir()
+            target.mkdir(parents=True, exist_ok=True)
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
 
     def _remove_job(self, job_id: str) -> None:
@@ -532,6 +549,8 @@ class MainWindow(QWidget):
         except FileNotFoundError:
             row.show_note("The file was moved or deleted.", error=True)
             row.set_output_name(None)
+            self.dock.set_renamable(job_id, False)
+            self._job_outputs.pop(job_id, None)
             return
         except (OSError, ValueError) as exc:
             row.show_note(f"Couldn't rename: {exc}", error=True)
@@ -550,8 +569,20 @@ class MainWindow(QWidget):
         self._open_queue(True)
         row.begin_rename()
 
+    def _retry_failed(self) -> None:
+        """Re-queue every failed job (e.g. a playlist's temporary HTTP 403s)."""
+        for job_id in self.dock.job_ids(c.JobState.FAILED):
+            self._retry_job(job_id)
+
     def _clear_completed(self) -> None:
-        for job_id in self.dock.job_ids(c.JobState.COMPLETED):
+        self._clear_jobs(c.JobState.COMPLETED)
+
+    def _clear_failed(self) -> None:
+        self._clear_jobs(c.JobState.FAILED)
+
+    def _clear_jobs(self, state: c.JobState) -> None:
+        """Drop every job in *state* from the dock and the queue."""
+        for job_id in self.dock.job_ids(state):
             self.dock.remove_item(job_id)
             self.queue_panel.remove_row(job_id)
             self._job_options.pop(job_id, None)

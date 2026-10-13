@@ -156,3 +156,46 @@ def test_long_error_does_not_widen_the_queue(qtbot) -> None:  # type: ignore[no-
     assert row.minimumSizeHint().width() < 700
     assert panel.findChildren(QScrollArea)[0].horizontalScrollBar().maximum() == 0
     assert err.user_message in row.meta_text()  # full text kept (tooltip / accessor)
+
+
+def test_rename_of_vanished_file_disables_rename(window, mock_runner_factory, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    media = tmp_path / "Gone.mp4"
+    media.write_text("x")
+    row = _completed_with_file(window, mock_runner_factory, media)
+    media.unlink()
+
+    row.rename.emit(row.job_id, "Other")
+
+    assert "moved or deleted" in row.meta_text()
+    assert row.output_name() is None
+    assert row.job_id not in window.dock._renamable  # noqa: SLF001
+
+
+def _two_failed_one_done(window, mock_runner_factory, mock_config):  # type: ignore[no-untyped-def]
+    mock_config.set("max_concurrent_downloads", 3)
+    _load(window)
+    for _ in range(3):
+        window.media_card.queue_btn.click()
+    first, second, third = mock_runner_factory.created
+    first.finish(c.JobState.FAILED)
+    second.finish(c.JobState.COMPLETED)
+    third.finish(c.JobState.FAILED)
+
+
+def test_retry_failed_requeues_only_failed_jobs(window, mock_runner_factory, mock_config) -> None:  # type: ignore[no-untyped-def]
+    _two_failed_one_done(window, mock_runner_factory, mock_config)
+
+    window.queue_panel.retry_failed_btn.click()
+
+    assert len(mock_runner_factory.created) == 5  # two new runners, one per failed job
+    assert not window.dock.job_ids(c.JobState.FAILED)
+    assert len(window.dock.job_ids(c.JobState.COMPLETED)) == 1
+
+
+def test_clear_failed_removes_only_failed_jobs(window, mock_runner_factory, mock_config) -> None:  # type: ignore[no-untyped-def]
+    _two_failed_one_done(window, mock_runner_factory, mock_config)
+
+    window.queue_panel.clear_failed_btn.click()
+
+    assert window.dock.job_ids() == window.dock.job_ids(c.JobState.COMPLETED)
+    assert len(window.queue_panel.rows()) == 1
