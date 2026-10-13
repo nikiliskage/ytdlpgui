@@ -115,6 +115,37 @@ def test_config_corrupt_file_uses_defaults(tmp_path: Path, monkeypatch: pytest.M
     assert cfg.get("audio_format") == CONFIG_DEFAULTS["audio_format"]
 
 
+def test_config_non_object_json_uses_defaults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Valid JSON that is not an object (e.g. a list) must not crash startup."""
+    monkeypatch.setenv("YTDLPGUI_CONFIG_DIR", str(tmp_path))
+    _config_file(tmp_path).write_text('["video_dir"]', encoding="utf-8")
+
+    cfg = Config()
+    assert cfg.get("audio_format") == CONFIG_DEFAULTS["audio_format"]
+
+
+def test_config_save_is_atomic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """save() replaces the file in one step and leaves no temp file behind."""
+    monkeypatch.setenv("YTDLPGUI_CONFIG_DIR", str(tmp_path))
+    cfg = Config()
+    cfg.set("audio_format", "mp3")
+    cfg.save()
+    cfg.set("audio_format", "m4a")
+    cfg.save()
+
+    assert json.loads(_config_file(tmp_path).read_text(encoding="utf-8"))["audio_format"] == "m4a"
+    assert [p.name for p in tmp_path.iterdir()] == ["config.json"]
+
+
+def test_as_download_options_bad_fragments_falls_back(tmp_config: Config) -> None:
+    """A hand-edited non-numeric value uses the default instead of raising."""
+    tmp_config.set("concurrent_fragments", "lots")
+    opts = tmp_config.as_download_options("https://x/v")
+    assert opts.concurrent_fragments == CONFIG_DEFAULTS["concurrent_fragments"]
+
+
 # ---------------------------------------------------------------------------
 # video_dir / audio_dir helpers
 # ---------------------------------------------------------------------------
