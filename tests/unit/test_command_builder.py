@@ -363,3 +363,14 @@ def test_print_file_adds_print_to_file_after_move() -> None:
 
 def test_no_print_file_by_default() -> None:
     assert "--print-to-file" not in build_command(_make_opts())
+
+
+def test_deno_path_enables_js_runtime() -> None:
+    args = build_command(_make_opts(), deno_path="C:/app/deno.exe")
+    idx = args.index("--js-runtimes")
+    assert args[idx + 1] == "deno:C:/app/deno.exe"
+    assert idx < args.index("--")
+
+
+def test_no_js_runtime_without_deno() -> None:
+    assert "--js-runtimes" not in build_command(_make_opts())

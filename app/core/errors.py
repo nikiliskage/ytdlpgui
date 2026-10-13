@@ -62,6 +62,15 @@ _PATTERNS: list[tuple[re.Pattern[str], ErrorKind, str]] = [
         "ffmpeg wasn't found. Set its path in Settings → Binaries (needed to merge video + audio).",
     ),
     (
+        # YouTube's JS challenge unsolved (no deno) → download URLs answer 403.
+        # Must precede the generic "HTTP Error \\d+" network rule.
+        re.compile(r"HTTP Error 403|403: Forbidden", re.IGNORECASE),
+        ErrorKind.NETWORK,
+        "The site refused the download (HTTP 403). Retry — it is often temporary. For YouTube, "
+        "make sure deno.exe is next to the app (or set in Settings → Binaries) and yt-dlp is "
+        "up to date.",
+    ),
+    (
         # Rate limiting — must precede the generic "HTTP Error \\d+" network rule.
         re.compile(r"HTTP Error 429|Too Many Requests", re.IGNORECASE),
         ErrorKind.NETWORK,

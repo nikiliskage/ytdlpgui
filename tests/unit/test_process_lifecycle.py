@@ -183,3 +183,47 @@ def test_output_files_subtitle_only_returns_every_subtitle(tmp_path: Path) -> No
     runner._scan_destination(f"[info] Writing video subtitles to: {en}")
     runner._scan_destination(f"[info] Writing video subtitles to: {tr}")
     assert runner._collect_outputs() == [en, tr]
+
+
+# ---------------------------------------------------------------------------
+# Subtitle-only runs that wrote nothing are failures, not "done"
+# ---------------------------------------------------------------------------
+
+
+def _finish(runner: YtDlpRunner, options: c.DownloadOptions) -> tuple[c.JobState, object]:
+    results: list[tuple[c.JobState, object]] = []
+    runner.set_callbacks(lambda _p: None, lambda _l: None, lambda s, e: results.append((s, e)))
+    runner._options = options
+    runner._on_process_finished(0, None)
+    return results[0]
+
+
+def test_subtitle_run_without_subtitles_fails(tmp_path: Path) -> None:
+    runner = YtDlpRunner()
+    opts = c.DownloadOptions(url="u", mode=c.DownloadMode.SUBTITLE, subtitle_langs=["en"])
+    state, error = _finish(runner, opts)
+    assert state == c.JobState.FAILED
+    assert isinstance(error, c.AppError) and "No subtitles in en" in error.user_message
+
+
+def test_subtitle_run_with_subtitle_completes(tmp_path: Path) -> None:
+    sub = tmp_path / "Clip.en.vtt"
+    sub.write_text("x")
+    runner = YtDlpRunner()
+    runner._scan_destination(f"[info] Writing video subtitles to: {sub}")
+    opts = c.DownloadOptions(url="u", mode=c.DownloadMode.SUBTITLE, subtitle_langs=["en"])
+    state, error = _finish(runner, opts)
+    assert state == c.JobState.COMPLETED and error is None
+
+
+def test_video_run_exit_zero_still_completes() -> None:
+    state, error = _finish(YtDlpRunner(), c.DownloadOptions(url="u"))
+    assert state == c.JobState.COMPLETED and error is None
+
+
+def test_runner_passes_configured_deno(tmp_path: Path) -> None:
+    deno = tmp_path / "deno.exe"
+    deno.write_text("fake")
+    assert YtDlpRunner(_Cfg(deno_path=str(deno)))._locate_deno() == str(deno)
+    fetcher = FormatFetcher(_Cfg(deno_path=str(deno)))
+    assert fetcher._locate_deno() == str(deno)

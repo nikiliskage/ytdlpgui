@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
+from app.core.command_builder import js_runtime_args
 from app.core.contracts import (
     AppError,
     ErrorKind,
@@ -23,7 +24,7 @@ from app.core.contracts import (
     PlaylistItem,
 )
 from app.core.errors import map_stderr
-from app.core.paths import YTDLP_NOT_FOUND_MESSAGE, find_ytdlp
+from app.core.paths import YTDLP_NOT_FOUND_MESSAGE, find_deno, find_ytdlp
 
 try:
     from PySide6.QtCore import QObject, QProcess, QTimer
@@ -362,7 +363,8 @@ class FormatFetcher(QObject):
         process.readyReadStandardError.connect(_read_err)
         process.finished.connect(_finished)
         process.errorOccurred.connect(_error)
-        process.start(ytdlp, extra_args)
+        # deno lets yt-dlp solve YouTube's JS challenge (else formats go missing).
+        process.start(ytdlp, [*js_runtime_args(self._locate_deno()), *extra_args])
         timer.start(_FETCH_TIMEOUT_MS)
 
     # ------------------------------------------------------------------
@@ -458,13 +460,21 @@ class FormatFetcher(QObject):
     # Helpers
     # ------------------------------------------------------------------
 
+    def _configured(self, key: str) -> str:
+        """Binary path the user set in Settings → Binaries ("" = auto-detect)."""
+        if self._config is None:
+            return ""
+        try:
+            return str(self._config.get(key) or "")
+        except Exception:
+            return ""
+
     def _locate_ytdlp(self) -> str | None:
         """Configured path, else the app's install folder; None if neither has it."""
-        configured = ""
-        if self._config is not None:
-            try:
-                configured = str(self._config.get("ytdlp_path") or "")
-            except Exception:
-                configured = ""
-        found = find_ytdlp(configured)
+        found = find_ytdlp(self._configured("ytdlp_path"))
         return str(found) if found else None
+
+    def _locate_deno(self) -> str:
+        """deno for YouTube's JS challenge; "" when it isn't installed."""
+        found = find_deno(self._configured("deno_path"))
+        return str(found) if found else ""
