@@ -1,9 +1,9 @@
 # yt-dlp GUI
 
 A dark-themed **PySide6 desktop GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp)** (Windows-first).
-Paste a link, pick a real available format, and download — with a built-in queue, cookie
-support for sign-in/age-restricted content, audio extraction, subtitles, and one-click
-yt-dlp self-update.
+Paste a link, pick a real available format, and download — with a built-in queue, playlist
+downloads, renaming of finished files, cookie support for sign-in/age-restricted content, audio
+extraction, subtitles, and one-click yt-dlp self-update.
 
 > **Status:** in development (`0.1.0`).
 >
@@ -12,12 +12,14 @@ yt-dlp self-update.
 ![yt-dlp GUI — main window](docs/assets/screenshots/app.png)
 
 ## Why
-Using yt-dlp from the command line, two things are annoying:
+Using yt-dlp from the command line, a few things are annoying:
 1. Guessing format strings → *"Requested format is not available"*.
 2. Age-restricted / sign-in videos failing.
+3. Grabbing *part* of a playlist means hand-writing `--playlist-items` ranges.
 
-This GUI fixes both: it **fetches the video's real available formats** into a clickable list,
-and offers an **optional cookie module** (read locally, never stored) for sign-in content.
+This GUI fixes these: it **fetches the video's real available formats** into a clickable list,
+offers an **optional cookie module** (read locally, never stored) for sign-in content, and lists a
+**playlist's videos as a checklist** so you tick exactly the ones you want.
 
 ## Requirements
 This app does **not** bundle the binaries — you provide them (keeps the download small and
@@ -33,8 +35,11 @@ another folder. (In a source checkout, the repo root counts as the app's folder.
 ## Install (from source, during development)
 ```powershell
 pip install -r requirements-dev.txt
+# put yt-dlp.exe and ffmpeg.exe in the repo root (or set them later in Settings → Binaries)
 python main.py
 ```
+Checks (same as CI): `ruff check . ; ruff format --check . ; mypy app ; pytest -m "not network"`.
+See the [development guide](docs/development.md) for details.
 
 ## Packaged build
 A single GUI `.exe` is produced with PyInstaller (binaries stay external):
@@ -75,7 +80,14 @@ and `\audio`) is then built from `installer/ytdlpgui.iss` with
   (Settings → Cookies) and choose **Firefox** or a **cookies.txt** file. Chrome/Edge can't be read
   directly (Chromium app-bound cookie encryption) — export a `cookies.txt` for those. If it still
   fails, the site may require a PO token — see the [yt-dlp wiki](https://github.com/yt-dlp/yt-dlp/wiki).
-- **"ffmpeg not found"?** Set its path in Settings → Binaries.
+- **"yt-dlp not found" / "ffmpeg not found"?** Put the `.exe` next to the app (the install folder),
+  or set its path in Settings → Binaries. The app does not look in your PATH or in `C:\yt-dlp`.
+- **How do I download only some videos of a playlist?** Paste the playlist link and untick the ones
+  you don't want. For a `watch?v=…&list=…` link, the video opens first — click **Open playlist** on
+  the media card. Files are numbered in playlist order inside a folder named after the playlist.
+- **Can I rename a file after it downloaded?** Yes — click the pencil on the finished job in the
+  queue, type the new name, press Enter. The extension is kept and matching subtitle/thumbnail
+  files are renamed too.
 - **Cookies safe?** They are read locally and passed only to yt-dlp for the download — never stored
   or transmitted by this app. See [SECURITY.md](SECURITY.md). Prefer a secondary account.
 
