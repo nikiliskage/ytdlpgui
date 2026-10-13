@@ -64,4 +64,4 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [Messages]
 ; Extra reminder shown on the "Ready to Install" page.
-ReadyLabel2b=yt-dlp GUI does not include yt-dlp.exe or ffmpeg.exe. After installing, put both in the install folder (next to the app), or set their paths in Settings -> Binaries. Downloads default to Documents\yt-dlp-gui (video / audio).
+ReadyLabel2b=yt-dlp GUI does not include yt-dlp.exe, ffmpeg.exe or deno.exe (deno is needed for YouTube). After installing, put them in the install folder (next to the app), or set their paths in Settings -> Binaries. Downloads default to Documents\yt-dlp-gui (video / audio).

@@ -17,7 +17,7 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 
 2. Third-party programs (not included)
 --------------------------------------
-The Software does NOT include yt-dlp.exe or ffmpeg.exe. You obtain those
+The Software does NOT include yt-dlp.exe, ffmpeg.exe or deno.exe. You obtain those
 yourself from their official sources. They are independent programs governed
 by their own licenses; the Software merely runs the binaries you provide and
 is not affiliated with, and does not redistribute, them.

@@ -9,6 +9,7 @@ avoids antivirus/SmartScreen false positives and ffmpeg licensing concerns):
 | --- | --- | --- |
 | **yt-dlp.exe** | <https://github.com/yt-dlp/yt-dlp/releases> | Everything |
 | **ffmpeg.exe** | <https://www.gyan.dev/ffmpeg/builds/> | Merging video+audio and audio conversion |
+| **deno.exe** | <https://github.com/denoland/deno/releases/latest> | YouTube (JavaScript challenge — without it downloads fail with HTTP 403) |
 
 Put both **next to the app** (the install folder), or point to them later in
 **Settings → Binaries**. The app looks only in those two places — never in your PATH or any other
@@ -38,7 +39,7 @@ folder.
 
 ## First run
 
-1. The app opens with a **splash** that checks for `yt-dlp.exe` / `ffmpeg.exe`. If a binary is
+1. The app opens with a **splash** that checks for `yt-dlp.exe` / `ffmpeg.exe` / `deno.exe`. If a binary is
    missing, a banner tells you and links to **Settings → Binaries**.
 2. Paste a video URL into the **omni-bar** and press **Fetch**.
 3. Pick a quality chip (or open the advanced format table), then **Download**.

@@ -61,7 +61,7 @@ being signed in. A one-time disclaimer is shown the first time you turn it on.
 
 All path fields below are **read-only — set them with Browse** (you can't mistype or paste a path).
 
-- **Binaries** — `yt-dlp.exe` / `ffmpeg.exe`. Leave empty to use the ones next to the app; the
+- **Binaries** — `yt-dlp.exe` / `ffmpeg.exe` / `deno.exe` (YouTube needs deno). Leave empty to use the ones next to the app; the
   app never searches your PATH.
 - **Output** — separate **Video** and **Audio** folders; default `Documents\yt-dlp-gui\video` /
   `\audio`, Browse to change.
@@ -87,4 +87,10 @@ failed) is reported inline.
     Set its path in **Settings → Binaries**.
 
 ??? question "Download fails with 403 / format errors"
-    Your yt-dlp may be outdated. Click **Update yt-dlp** (or run `yt-dlp -U`) and try again.
+    For YouTube, yt-dlp needs **deno** to solve a JavaScript challenge — put `deno.exe` next to the
+    app (or set it in **Settings → Binaries**). Your yt-dlp may also be outdated: click
+    **Update yt-dlp** (or run `yt-dlp -U`). An occasional 403 is temporary — **Retry**.
+
+??? question "Subtitle downloads show \"No subtitles in …\""
+    The video has no manually-uploaded subtitle in that language (common for music). The job is
+    marked failed instead of "done" so nothing is silently skipped.
