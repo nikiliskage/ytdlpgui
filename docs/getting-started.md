@@ -11,9 +11,18 @@ avoids antivirus/SmartScreen false positives and ffmpeg licensing concerns):
 | **ffmpeg.exe** | <https://www.gyan.dev/ffmpeg/builds/> | Merging video+audio and audio conversion |
 | **deno.exe** | <https://github.com/denoland/deno/releases/latest> | YouTube (JavaScript challenge — without it downloads fail with HTTP 403) |
 
-Put both **next to the app** (the install folder), or point to them later in
-**Settings → Binaries**. The app looks only in those two places — never in your PATH or any other
-folder.
+Put all three **next to the app** (the install folder, by default
+`%LocalAppData%\Programs\yt-dlp-gui`), or point to them later in **Settings → Binaries**. The app
+looks only in those two places — never in your PATH or any other folder. For ffmpeg and deno,
+download the zip and take just the `.exe` (`bin\ffmpeg.exe`, `deno.exe`).
+
+!!! warning "deno is required for YouTube"
+    YouTube protects its download links with a JavaScript challenge that yt-dlp solves with deno.
+    Without `deno.exe`, YouTube downloads fail with **HTTP 403 Forbidden** even though fetching
+    works. Upgrading from an earlier build? Add `deno.exe` next to the app.
+
+The installer shows these steps after installing, lists any file still missing from the install
+folder, and offers to open it; the same guide is saved there as `README - binaries.txt`.
 
 ## Install
 

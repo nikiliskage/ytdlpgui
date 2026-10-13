@@ -23,16 +23,32 @@ offers an **optional cookie module** (read locally, never stored) for sign-in co
 
 ## Requirements
 This app does **not** bundle the binaries — you provide them (keeps the download small and
-avoids antivirus/SmartScreen false positives and ffmpeg licensing concerns):
+avoids antivirus/SmartScreen false positives and ffmpeg licensing concerns). You need **three**
+free programs:
 
-- **yt-dlp.exe** — https://github.com/yt-dlp/yt-dlp/releases
-- **ffmpeg.exe** — https://www.gyan.dev/ffmpeg/builds/ (needed for merging video+audio and audio conversion)
-- **deno.exe** — https://github.com/denoland/deno/releases/latest (`deno-x86_64-pc-windows-msvc.zip`). yt-dlp needs a
-  JavaScript runtime for **YouTube**: without it, downloads fail with *HTTP 403 Forbidden*.
+| File | What it does | Where to get it |
+| --- | --- | --- |
+| **yt-dlp.exe** | The downloader | [yt-dlp releases](https://github.com/yt-dlp/yt-dlp/releases/latest) → `yt-dlp.exe` |
+| **ffmpeg.exe** | Merges video + audio, converts audio | [gyan.dev builds](https://www.gyan.dev/ffmpeg/builds/) → `ffmpeg-release-essentials.zip` → `bin\ffmpeg.exe` |
+| **deno.exe** | JavaScript runtime yt-dlp needs for **YouTube** | [deno releases](https://github.com/denoland/deno/releases/latest) → `deno-x86_64-pc-windows-msvc.zip` → `deno.exe` |
 
-Put them **next to the app** (the install folder), or point to them in **Settings → Binaries**.
+> [!IMPORTANT]
+> **deno is required for YouTube.** YouTube protects its download links with a JavaScript
+> challenge that yt-dlp solves with deno. Without `deno.exe`, every YouTube download fails with
+> **HTTP 403 Forbidden** (fetching still works, so it looks like the download "just fails").
+> Upgrading from an earlier build? Add `deno.exe` next to the app.
+
+### Setting them up
+1. Download the three files above (unzip ffmpeg and deno, take just the `.exe`).
+2. Put all three **next to the app** — the install folder, by default
+   `%LocalAppData%\Programs\yt-dlp-gui` (the installer offers to open it and lists what's
+   missing). Or keep them anywhere and pick each one in **Settings → Binaries**.
+3. Start the app: the splash shows ✓ for *Checking yt-dlp / ffmpeg / deno*. A ✗ means that file
+   isn't where the app looks.
+
 Those are the only two places the app looks — it never picks up a yt-dlp/ffmpeg/deno from your
 PATH or another folder. (In a source checkout, the repo root counts as the app's folder.)
+Keep yt-dlp current with **Settings → Update yt-dlp**; sites change often.
 
 ## Install (from source, during development)
 ```powershell
@@ -49,7 +65,8 @@ A single GUI `.exe` is produced with PyInstaller (binaries stay external):
 pyinstaller ytdlpgui.spec
 ```
 A Windows **setup installer** (with a license/disclaimer you must accept, a Start Menu
-shortcut, and an uninstaller; installs per-user — no admin — under
+shortcut, an uninstaller, and a closing page that explains the three binaries, lists any that are
+missing from the install folder and offers to open it; installs per-user — no admin — under
 `%LocalAppData%\Programs\yt-dlp-gui`, with downloads defaulting to `Documents\yt-dlp-gui\video`
 and `\audio`) is built from `installer/ytdlpgui.iss` with
 [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`).

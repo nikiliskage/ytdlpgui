@@ -1,0 +1,32 @@
+yt-dlp GUI - one more step before your first download
+======================================================
+
+yt-dlp GUI is the window; the actual work is done by three free programs that
+are NOT included (download each from its official page). Put all three into
+the app's install folder - the same folder as ytdlpgui.exe:
+
+    %LocalAppData%\Programs\yt-dlp-gui
+    (the "Open the install folder" option on the next page opens it for you)
+
+1. yt-dlp.exe   - the downloader (required)
+   https://github.com/yt-dlp/yt-dlp/releases/latest
+   -> download "yt-dlp.exe"
+
+2. ffmpeg.exe   - merges video + audio, converts audio (required)
+   https://www.gyan.dev/ffmpeg/builds/
+   -> download "ffmpeg-release-essentials.zip", open it, and copy
+      bin\ffmpeg.exe
+
+3. deno.exe     - JavaScript runtime yt-dlp needs for YouTube (required for YouTube)
+   https://github.com/denoland/deno/releases/latest
+   -> download "deno-x86_64-pc-windows-msvc.zip", open it, and copy deno.exe
+   Without deno, YouTube downloads fail with "HTTP 403 Forbidden".
+
+Prefer another location? Leave them anywhere and pick each file in the app
+under Settings -> Binaries. The app never looks in PATH or other folders.
+
+Check: when the app starts, the splash shows a check mark next to
+"Checking yt-dlp", "Checking ffmpeg" and "Checking deno". A cross means that
+file is missing or not where the app can see it.
+
+Keep yt-dlp current with Settings -> "Update yt-dlp" - sites change often.

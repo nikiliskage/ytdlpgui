@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+> **Action required when upgrading:** put **`deno.exe`** next to the app (or pick it in
+> Settings → Binaries) — get it from <https://github.com/denoland/deno/releases/latest>
+> (`deno-x86_64-pc-windows-msvc.zip`). YouTube downloads need it; without it they fail with
+> HTTP 403. Binaries are also no longer picked up from `C:\yt-dlp` or PATH — keep `yt-dlp.exe`,
+> `ffmpeg.exe` and `deno.exe` in the install folder.
+
 ### Added
 - **Playlist downloads.** A playlist link opens a checklist of its videos (all ticked, Select all);
   a video link that is part of a playlist offers "Open playlist". One mode/quality applies to the
@@ -18,12 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tools/build_installer.ps1` builds the exe and the setup installer in one step: it finds
   `ISCC.exe` itself (PATH, registry incl. per-user Inno Setup installs, default folders) and
   passes the version from `app/__init__.py` to the installer script (`/DMyAppVersion`).
-
 - **deno support** (Settings → Binaries, or `deno.exe` next to the app). yt-dlp needs a
   JavaScript runtime to solve YouTube's challenge; without one every YouTube download failed
   with HTTP 403. The path is passed as `--js-runtimes deno:<path>` to fetches and downloads, and
   the splash checks for it. A 403 now explains this instead of saying "Network problem".
 - Dock items: right-click for **Rename…** / **Open folder** / **Show in queue**.
+- Installer: after installing, a page explains the three binaries (what, where to download,
+  where to put them); the closing page lists any still missing from the install folder and offers
+  to open it. The same guide is installed as `README - binaries.txt`. The ready page, EULA and
+  SECURITY.md mention deno.
 
 ### Changed
 - yt-dlp / ffmpeg are looked up **only** in Settings → Binaries and the app's own (install)
