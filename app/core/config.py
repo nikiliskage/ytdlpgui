@@ -69,11 +69,17 @@ class Config:
         self._data[key] = value
 
     def save(self) -> None:
-        """Write current settings to disk as JSON."""
-        self._path.write_text(
+        """Write current settings to disk as JSON.
+
+        Atomic (temp file + replace): Settings saves on every change, so a crash
+        mid-write must never leave a truncated file that resets all settings.
+        """
+        tmp = self._path.with_suffix(".json.tmp")
+        tmp.write_text(
             json.dumps(self._data, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+        os.replace(tmp, self._path)
 
     # ------------------------------------------------------------------
     # Internal load / migration
@@ -84,9 +90,11 @@ class Config:
         if not self._path.exists():
             return  # keep defaults as-is
         try:
-            raw: dict[str, Any] = json.loads(self._path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+            raw: object = json.loads(self._path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError):
             return  # corrupt file — keep defaults
+        if not isinstance(raw, dict):
+            return  # valid JSON but not a settings object — keep defaults
 
         # Migration: only accept keys that exist in CONFIG_DEFAULTS.
         # Unknown keys (from a newer version) are silently dropped.
@@ -189,10 +197,12 @@ class Config:
             embed_subs=bool(self._data.get("embed_subs", False)),
             embed_thumbnail=bool(self._data.get("embed_thumbnail", False)),
             embed_metadata=bool(self._data.get("embed_metadata", False)),
-            concurrent_fragments=int(
-                self._data.get(
-                    "concurrent_fragments",
-                    CONFIG_DEFAULTS["concurrent_fragments"],
-                )
-            ),
+            concurrent_fragments=self._int("concurrent_fragments"),
         )
+
+    def _int(self, key: str) -> int:
+        """Config value as int; a hand-edited bad value falls back to the default."""
+        try:
+            return int(str(self._data.get(key)))
+        except (TypeError, ValueError):
+            return int(str(CONFIG_DEFAULTS[key]))
