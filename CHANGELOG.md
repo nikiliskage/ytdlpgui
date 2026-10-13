@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-13
+
 > **Action required when upgrading:** put **`deno.exe`** next to the app (or pick it in
 > Settings → Binaries) — get it from <https://github.com/denoland/deno/releases/latest>
 > (`deno-x86_64-pc-windows-msvc.zip`). YouTube downloads need it; without it they fail with
@@ -29,10 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with HTTP 403. The path is passed as `--js-runtimes deno:<path>` to fetches and downloads, and
   the splash checks for it. A 403 now explains this instead of saying "Network problem".
 - Dock items: right-click for **Rename…** / **Open folder** / **Show in queue**.
+- Queue panel: **Retry failed** re-queues every failed job at once (handy for a playlist's
+  temporary HTTP 403s) and **Clear failed** removes them, next to **Clear completed**.
 - Installer: after installing, a page explains the three binaries (what, where to download,
   where to put them); the closing page lists any still missing from the install folder and offers
   to open it. The same guide is installed as `README - binaries.txt`. The ready page, EULA and
   SECURITY.md mention deno.
+
+- An outdated yt-dlp that doesn't know `--js-runtimes` now says "too old — update it"
+  instead of failing every fetch/download with a generic error.
 
 ### Changed
 - yt-dlp / ffmpeg are looked up **only** in Settings → Binaries and the app's own (install)
@@ -64,9 +71,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   partial-file cleanup finds the right paths.
 - Settings are written atomically; a non-object `config.json` falls back to defaults
   instead of crashing on start.
+- A channel link no longer lists its Videos/Shorts/Live tabs as "videos" (each would have
+  downloaded a whole tab as one job, all files with the same number). Paste the channel's
+  *Videos* tab (`…/@name/videos`) to get its videos.
+- Retry after a failed "Open playlist" expands the playlist again instead of re-fetching the
+  single video.
+- Rename: a file deleted/moved on disk also disables "Rename…" in the dock menu; a rename that
+  fails midway (e.g. subtitle open in a player) is rolled back so media and sidecars stay paired.
+- "Open folder" opens the folder the finished file is actually in.
+- YouTube mixes (`list=RD…`) no longer offer "Open playlist" (they are endless, per-viewer lists).
 
 ### Removed
 - Unused `app/core/queue_manager.py` (the main window owns the queue).
+
+### Docs
+- Site home lists playlists and renaming; architecture no longer describes the removed queue
+  manager; troubleshooting covers "yt-dlp not found" and an outdated yt-dlp. The docs site now
+  also redeploys when `CHANGELOG.md` or `SECURITY.md` change (both are included in it).
 
 ## [0.1.0] - 2026-06-13
 
