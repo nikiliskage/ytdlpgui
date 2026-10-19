@@ -56,6 +56,9 @@ class MockRunner:
     def cancel(self) -> None:
         self.canceled = True
 
+    def shutdown(self) -> None:
+        self.cancel()
+
     def output_files(self) -> list[Path]:
         return list(self.outputs)
 

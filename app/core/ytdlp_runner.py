@@ -302,6 +302,19 @@ class YtDlpRunner(QObject):
             self._process.kill()
             # _on_process_finished will fire and report CANCELED.
 
+    def shutdown(self) -> None:
+        """Cancel and wait for the process, so partials are deleted before the app exits.
+
+        waitForFinished() emits ``finished`` synchronously, which runs the usual
+        cleanup and report; without it the runner dies with the window first.
+        """
+        if self._process is None or not _QT_AVAILABLE:
+            return
+        if self._process.state() == QProcess.ProcessState.NotRunning:
+            return
+        self.cancel()
+        self._process.waitForFinished(3000)
+
     # ------------------------------------------------------------------
     # QProcess slots
     # ------------------------------------------------------------------

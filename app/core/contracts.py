@@ -291,6 +291,10 @@ class IYtDlpRunner(Protocol):
         """Aktif indirmeyi iptal et (bu işin .part/.ytdl dosyaları silinir)."""
         ...
 
+    def shutdown(self) -> None:
+        """Uygulama kapanırken: iptal et ve süreç bitene kadar bekle (senkron temizlik)."""
+        ...
+
     def set_callbacks(
         self,
         on_progress: ProgressCallback,

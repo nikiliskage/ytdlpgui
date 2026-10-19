@@ -66,6 +66,37 @@ def test_cancel_queued_job_never_starts(window, mock_runner_factory) -> None:  #
     assert window.dock.job_ids(c.JobState.CANCELED) == [queued_id]
 
 
+def test_removing_running_job_waits_for_its_cleanup(window, mock_runner_factory) -> None:  # type: ignore[no-untyped-def]
+    """The removed job's runner lives until it reports, so it can delete its partials."""
+    _load(window)
+    window.media_card.queue_btn.click()
+    window.media_card.queue_btn.click()
+    running_id = window.dock.job_ids(c.JobState.RUNNING)[0]
+    runner = mock_runner_factory.created[0]
+
+    window._remove_job(running_id)  # noqa: SLF001
+
+    assert runner.canceled
+    assert window._runners[running_id] is runner  # noqa: SLF001
+    assert len(mock_runner_factory.created) == 1  # next one waits for the cancel
+
+    runner.finish(c.JobState.CANCELED)
+    assert running_id not in window._runners  # noqa: SLF001
+    assert len(mock_runner_factory.created) == 2
+    assert running_id not in window.dock._items  # noqa: SLF001
+
+
+def test_closing_window_shuts_down_running_job(window, mock_runner_factory) -> None:  # type: ignore[no-untyped-def]
+    _load(window)
+    window.media_card.queue_btn.click()
+    window.media_card.queue_btn.click()
+
+    window.close()
+
+    assert mock_runner_factory.created[0].canceled
+    assert len(mock_runner_factory.created) == 1  # the queued one never starts
+
+
 def test_clear_completed_removes_only_completed(window, mock_runner_factory) -> None:  # type: ignore[no-untyped-def]
     _load(window)
     window.media_card.queue_btn.click()

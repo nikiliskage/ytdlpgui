@@ -13,7 +13,14 @@ from functools import partial
 from pathlib import Path
 
 from PySide6.QtCore import QPoint, QRectF, Qt, QUrl
-from PySide6.QtGui import QDesktopServices, QKeyEvent, QPainterPath, QRegion, QResizeEvent
+from PySide6.QtGui import (
+    QCloseEvent,
+    QDesktopServices,
+    QKeyEvent,
+    QPainterPath,
+    QRegion,
+    QResizeEvent,
+)
 from PySide6.QtWidgets import (
     QScrollArea,
     QVBoxLayout,
@@ -412,12 +419,12 @@ class MainWindow(QWidget):
 
     def _remove_job(self, job_id: str) -> None:
         self._pending = [(j, o) for (j, o) in self._pending if j != job_id]
-        if job_id in self._running:
-            runner = self._runners.get(job_id)
-            if runner is not None:
-                runner.cancel()
-            self._running.discard(job_id)
-        self._runners.pop(job_id, None)
+        runner = self._runners.get(job_id)
+        if runner is not None:
+            # Keep the runner (and its slot) until it reports CANCELED: dropping
+            # the last reference here destroyed it before it could delete the
+            # job's partial files. _on_finished frees the slot and pumps.
+            runner.cancel()
         self._job_options.pop(job_id, None)
         self._job_outputs.pop(job_id, None)
         self.dock.remove_item(job_id)
@@ -508,6 +515,12 @@ class MainWindow(QWidget):
 
     def _on_finished(self, job_id: str, state: c.JobState, error: c.AppError | None) -> None:
         runner = self._runners.get(job_id)
+        if job_id not in self._job_options:
+            # Removed from the queue while running; only free its slot.
+            self._running.discard(job_id)
+            self._runners.pop(job_id, None)
+            self._pump()
+            return
         outputs = runner.output_files() if runner is not None else []
         if state == c.JobState.COMPLETED:
             self._job_outputs[job_id] = outputs
@@ -623,6 +636,13 @@ class MainWindow(QWidget):
         if event.key() == Qt.Key.Key_Escape:
             self._close_overlays()
         super().keyPressEvent(event)
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+        """Stop the running download so it neither outlives the app nor leaves partials."""
+        self._pending.clear()  # nothing may start while we shut down
+        for runner in list(self._runners.values()):
+            runner.shutdown()
+        super().closeEvent(event)
 
     # -- overlay geometry -----------------------------------------------------
     def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802

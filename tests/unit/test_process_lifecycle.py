@@ -63,6 +63,31 @@ def test_runner_reports_failure_when_binary_cannot_start(qtbot, tmp_path: Path) 
     assert error is not None and "could not be started" in error.user_message
 
 
+def test_runner_shutdown_stops_process_and_reports_synchronously(  # type: ignore[no-untyped-def]
+    qtbot, tmp_path: Path, monkeypatch
+) -> None:
+    """On app exit the download is killed and cleaned up before shutdown() returns."""
+    import app.core.command_builder as cb
+
+    sleeper = [sys.executable, "-c", "import time; time.sleep(30)"]
+    monkeypatch.setattr(cb, "build_command", lambda *_a, **_k: sleeper)
+    runner = YtDlpRunner()
+    runner._locate_ytdlp = lambda: sys.executable  # type: ignore[method-assign]
+    results: list[c.JobState] = []
+    runner.set_callbacks(lambda _p: None, lambda _l: None, lambda s, _e: results.append(s))
+    runner.start(c.DownloadOptions(url="https://x/v", video_dir=tmp_path))
+    partial_file = tmp_path / "video.mp4.part"
+    partial_file.write_text("half")
+    runner._record(str(partial_file))  # as if yt-dlp had announced it
+    assert runner._process is not None
+    qtbot.waitUntil(lambda: runner._process.processId() != 0, timeout=5000)
+
+    runner.shutdown()
+
+    assert results == [c.JobState.CANCELED]
+    assert not partial_file.exists()
+
+
 # ---------------------------------------------------------------------------
 # FormatFetcher
 # ---------------------------------------------------------------------------
