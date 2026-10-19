@@ -28,7 +28,7 @@ folder, and offers to open it; the same guide is saved there as `README - binari
 
 === "Installer (recommended)"
 
-    Download **`ytdlpgui-setup-0.2.0.exe`** from the
+    Download **`ytdlpgui-setup-0.2.2.exe`** from the
     [Releases page](https://github.com/nikiliskage/ytdlpgui/releases) and run it. It installs
     per-user (no admin) to `%LocalAppData%\Programs\yt-dlp-gui`, with a Start Menu shortcut, and
     asks you to accept a short license/disclaimer.

@@ -5,7 +5,7 @@ Paste a link, pick a real available format, and download — with a built-in que
 downloads, renaming of finished files, cookie support for sign-in/age-restricted content, audio
 extraction, subtitles, and one-click yt-dlp self-update.
 
-> **Status:** in development (`0.2.0`).
+> **Status:** in development (`0.2.2`).
 >
 > 📖 **Documentation:** <https://nikiliskage.github.io/ytdlpgui/>
 
