@@ -10,7 +10,7 @@ hide:
 
 # yt-dlp GUI
 
-<span class="ytg-badge">Latest: v0.2.0</span>
+<span class="ytg-badge">Latest: v0.2.2</span>
 
 <p class="ytg-tagline">
 A dark-themed PySide6 desktop GUI for <a href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a> (Windows-first).
