@@ -106,8 +106,11 @@ def test_fetcher_reads_configured_path_on_every_fetch(tmp_path: Path) -> None:
     assert fetcher._locate_ytdlp() == str(second)
 
 
-def test_superseded_fetch_result_is_dropped(qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_superseded_fetch_result_is_dropped(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     """A slow earlier fetch must not be delivered in place of the newer one."""
+    import app.core.format_fetcher as ff
+
+    monkeypatch.setattr(ff, "OUTPUT_ENCODING_ARGS", [])  # Python stands in for yt-dlp
     fetcher = FormatFetcher()
     fetcher._locate_ytdlp = lambda: sys.executable  # type: ignore[method-assign]
     delivered: list[str] = []
