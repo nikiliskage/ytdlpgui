@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-19
+
+### Fixed
+- Removing a download from the queue while it runs now deletes its partial files
+  (`.part`/`.ytdl`); before, the job was dropped before it could clean up. The next download
+  starts once the canceled one has stopped.
+- Closing the window during a download stops it (with its ffmpeg child) and deletes its partial
+  files, instead of leaving them behind; queued downloads don't start while the app closes.
+
 ## [0.2.0] - 2026-10-13
 
 > **Action required when upgrading:** put **`deno.exe`** next to the app (or pick it in
