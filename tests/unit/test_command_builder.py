@@ -59,6 +59,14 @@ def test_common_flags_present_video() -> None:
     assert "4" in args  # default value
 
 
+@pytest.mark.parametrize("mode", list(DownloadMode))
+def test_output_encoding_is_utf8_in_every_mode(mode: DownloadMode) -> None:
+    """yt-dlp would print paths in the ANSI code page; we decode UTF-8 ("ı" broke cleanup)."""
+    args = _args(_make_opts(mode=mode, subtitle_langs=["en"]))
+    idx = args.index("--encoding")
+    assert args[idx + 1] == "utf-8"
+
+
 def test_concurrent_fragments_custom() -> None:
     opts = _make_opts(concurrent_fragments=8)
     args = _args(opts)

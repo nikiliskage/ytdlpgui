@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-19
+
+### Fixed
+- Canceling a download whose folder or title has non-ASCII letters (e.g. a playlist folder
+  "Sıfır Bir") left its `.part`/`.ytdl` files behind. yt-dlp printed the paths in the Windows
+  code page, so they never matched the files on disk; it is now told to print UTF-8
+  (`--encoding utf-8`), for fetches too.
+- A canceled (or failed) download no longer leaves its thumbnail (`.webp`/`.png`, written when
+  "Embed thumbnail" is on) or ffmpeg's `<name>.temp.mp4` (written while adding metadata or
+  subtitles) in the output folder.
+
 ## [0.2.1] - 2026-10-19
 
 ### Fixed

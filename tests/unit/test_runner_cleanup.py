@@ -43,6 +43,30 @@ def test_cleanup_partials_removes_part_ytdl_and_fragments(tmp_path: Path) -> Non
         assert not p.exists(), f"{p.name} should have been deleted"
 
 
+def test_scan_destination_records_thumbnails_for_cleanup_only() -> None:
+    """Thumbnails are swept on cancel but never picked as the job's output file."""
+    runner = YtDlpRunner()
+    runner._scan_destination(r"[info] Writing video thumbnail 41 to: C:\v\Clip.webp")
+    runner._scan_destination(r'[ThumbnailsConvertor] Converting thumbnail "C:\v\Clip.webp" to png')
+    assert runner._dest_files == {r"C:\v\Clip.webp", r"C:\v\Clip.png"}
+    assert runner._announced == []
+
+
+def test_cleanup_partials_removes_postprocessor_temp_file(tmp_path: Path) -> None:
+    """Canceled while adding metadata/subtitles: ffmpeg's <name>.temp.<ext> goes too."""
+    temp = tmp_path / "Clip.temp.mp4"
+    thumb = tmp_path / "Clip.webp"
+    _touch(temp)
+    _touch(thumb)
+
+    runner = YtDlpRunner()
+    runner._dest_files = {str(tmp_path / "Clip.mp4"), str(thumb)}
+    runner._cleanup_partials()
+
+    assert not temp.exists()
+    assert not thumb.exists()
+
+
 def test_cleanup_partials_leaves_other_jobs_files(tmp_path: Path) -> None:
     """Only paths this job reported are removed; a sibling download survives."""
     mine = tmp_path / "Mine.mp4.part"

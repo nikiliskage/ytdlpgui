@@ -51,6 +51,12 @@ def js_runtime_args(deno_path: str) -> list[str]:
     return ["--js-runtimes", f"deno:{deno_path}"] if deno_path else []
 
 
+#: yt-dlp writes piped output in the ANSI code page (cp1254 on Turkish Windows)
+#: unless told otherwise; we decode UTF-8, so "ı" in a path became "�" and the
+#: Destination lines no longer matched the files on disk.
+OUTPUT_ENCODING_ARGS: list[str] = ["--encoding", "utf-8"]
+
+
 def _escape_template(literal: str) -> str:
     """Escape a literal path for use inside a yt-dlp output template."""
     return literal.replace("%", "%%")
@@ -116,6 +122,7 @@ class YtDlpCommandBuilder:
         # --no-playlist; the download must match. Playlists are downloaded as one
         # job per video (the UI expands the list and queues each item).
         self._add("--no-playlist")
+        self._add(*OUTPUT_ENCODING_ARGS)
         self._add("--windows-filenames")
         self._add("--continue")
         self._add("--concurrent-fragments", str(concurrent_fragments))

@@ -18,6 +18,7 @@ import codecs
 import contextlib
 import glob
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -53,6 +54,9 @@ except ImportError:  # pragma: no cover
 # ---------------------------------------------------------------------------
 
 _NA_VALUES = {"NA", "None", "none", "", "N/A"}
+
+# '[ThumbnailsConvertor] Converting thumbnail "<path>.webp" to png'
+_THUMB_CONVERT_RE = re.compile(r'Converting thumbnail "(.+)" to (\w+)')
 
 
 def _parse_float(value: str) -> float | None:
@@ -470,12 +474,23 @@ class YtDlpRunner(QObject):
         file, and ``Merging formats into "<path>"`` for the merged result. The
         on-disk partial is that path or ``<path>.part`` (plus ``.ytdl`` and
         ``.part-FragN`` fragment files).
+
+        Thumbnails (written for --embed-thumbnail, then converted) are only
+        recorded for cleanup, never as a candidate final file.
         """
         for marker in ("Destination: ", "Writing video subtitles to: "):
             idx = line.find(marker)
             if idx != -1:
                 self._record(line[idx + len(marker) :].strip().strip('"'))
                 return
+        if "Writing video thumbnail " in line and " to: " in line:
+            self._dest_files.add(line.split(" to: ", 1)[1].strip().strip('"'))
+            return
+        converted = _THUMB_CONVERT_RE.search(line)
+        if converted:
+            source, ext = converted.groups()
+            self._dest_files.add(os.path.splitext(source)[0] + "." + ext)
+            return
         if "Merging formats into " in line:
             first = line.find('"')
             last = line.rfind('"')
@@ -491,12 +506,16 @@ class YtDlpRunner(QObject):
         """Delete this job's leftover files from the output folder.
 
         Removes each announced destination plus its ``.part``/``.ytdl`` and
-        fragment siblings. Scoped to the paths *this* job reported, so a
-        concurrent download into the same folder is never touched.
+        fragment siblings, and the ``<name>.temp.<ext>`` file ffmpeg
+        post-processors (metadata, subtitle embedding, fixups) write unannounced.
+        Scoped to the paths *this* job reported, so a concurrent download into
+        the same folder is never touched.
         """
         for dest in self._dest_files:
+            root, ext = os.path.splitext(dest)
             self._remove_path(dest)
             self._remove_path(dest + ".ytdl")
+            self._remove_path(root + ".temp" + ext)
             for sibling in glob.glob(glob.escape(dest) + ".part*"):
                 self._remove_path(sibling)
         self._dest_files.clear()

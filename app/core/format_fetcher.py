@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
-from app.core.command_builder import js_runtime_args
+from app.core.command_builder import OUTPUT_ENCODING_ARGS, js_runtime_args
 from app.core.contracts import (
     AppError,
     ErrorKind,
@@ -378,7 +378,9 @@ class FormatFetcher(QObject):
         process.finished.connect(_finished)
         process.errorOccurred.connect(_error)
         # deno lets yt-dlp solve YouTube's JS challenge (else formats go missing).
-        process.start(ytdlp, [*js_runtime_args(self._locate_deno()), *extra_args])
+        process.start(
+            ytdlp, [*OUTPUT_ENCODING_ARGS, *js_runtime_args(self._locate_deno()), *extra_args]
+        )
         timer.start(_FETCH_TIMEOUT_MS)
 
     # ------------------------------------------------------------------
